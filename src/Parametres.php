@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * This file is part of BlitzPHP Parametres.
+ *
+ * (c) 2025 Dimitri Sitchet Tomkeu <devcode.dst@gmail.com>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace BlitzPHP\Parametres;
 
 use BlitzPHP\Parametres\Handlers\BaseHandler;
@@ -16,7 +25,7 @@ class Parametres
     /**
      * Un tableau de gestionnaires permettant d'obtenir ou de définir les valeurs.
      *
-     * @var BaseHandler[]
+     * @var list<BaseHandler>
      */
     private array $handlers = [];
 
@@ -80,7 +89,7 @@ class Parametres
 
     /**
      * Supprime un paramètre de la mémoire persistante,
-	 * en ramenant la valeur à la valeur par défaut trouvée dans le fichier de configuration, s'il y en a un.
+     * en ramenant la valeur à la valeur par défaut trouvée dans le fichier de configuration, s'il y en a un.
      */
     public function forget(string $key, ?string $context = null): void
     {
@@ -93,7 +102,7 @@ class Parametres
 
     /**
      * Supprime tous les paramètres de la mémoire permanente, utile lors des tests.
-	 * A utiliser avec précaution.
+     * A utiliser avec précaution.
      */
     public function flush(): void
     {
@@ -105,7 +114,7 @@ class Parametres
     /**
      * Renvoie les gestionnaires qui ont été défini pour stocker les valeurs.
      *
-     * @return BaseHandler[]
+     * @return list<BaseHandler>
      *
      * @throws RuntimeException
      */
@@ -129,7 +138,7 @@ class Parametres
     /**
      * Analyse la clé donnée et la décompose en parties fichier.champ.
      *
-     * @return string[]
+     * @return list<string>
      *
      * @throws InvalidArgumentException
      */
@@ -147,7 +156,7 @@ class Parametres
 
     /**
      * Étant donné une clé dans la syntaxe fichier.champ,
-	 * divise les valeurs et détermine le nom du fichier.
+     * divise les valeurs et détermine le nom du fichier.
      */
     private function prepareFileAndProperty(string $key): array
     {

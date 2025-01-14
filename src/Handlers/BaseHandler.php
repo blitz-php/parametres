@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * This file is part of BlitzPHP Parametres.
+ *
+ * (c) 2025 Dimitri Sitchet Tomkeu <devcode.dst@gmail.com>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace BlitzPHP\Parametres\Handlers;
 
 use RuntimeException;
@@ -52,7 +61,7 @@ abstract class BaseHandler
 
     /**
      * Prend en charge la conversion de certains types d'objets afin qu'ils puissent
-	 * être stockés en toute sécurité et réhydratés dans les fichiers de configuration.
+     * être stockés en toute sécurité et réhydratés dans les fichiers de configuration.
      *
      * @return mixed|string
      */
@@ -71,7 +80,7 @@ abstract class BaseHandler
 
     /**
      * Gère certaines conversions spéciales que les données peuvent avoir été enregistrées,
-	 * telles que les booléens et les données sérialisées.
+     * telles que les booléens et les données sérialisées.
      *
      * @return bool|mixed
      */
@@ -138,12 +147,12 @@ abstract class BaseHandler
                     if ('"' !== substr($data, -2, 1)) {
                         return false;
                     }
-                } elseif (false === strpos($data, '"')) {
+                } elseif (! str_contains($data, '"')) {
                     return false;
                 }
 
                 // Ou bien tomber dans le vide.
-                // Pas de pause
+                // no break
             case 'a':
             case 'O':
                 return (bool) preg_match("/^{$token}:[0-9]+:/s", $data);

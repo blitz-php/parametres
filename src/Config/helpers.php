@@ -1,13 +1,25 @@
 <?php
 
+/**
+ * This file is part of BlitzPHP Parametres.
+ *
+ * (c) 2025 Dimitri Sitchet Tomkeu <devcode.dst@gmail.com>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 use BlitzPHP\Parametres\Parametres;
 
 if (! function_exists('parametre')) {
     /**
      * Fournit une interface pratique au service Paramètres.
      *
-     * @return array|bool|float|int|object|Parametres|string|void|null
      * @phpstan-return ($key is null ? Parametres : ($value is null ? array|bool|float|int|object|string|null : void))
+     *
+     * @param mixed|null $value
+     *
+     * @return array|bool|float|int|object|Parametres|string|void|null
      */
     function parametre(?string $key = null, $value = null): mixed
     {

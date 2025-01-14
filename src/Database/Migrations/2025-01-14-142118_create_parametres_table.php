@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * This file is part of Blitz PHP framework - Schild.
+ * This file is part of BlitzPHP Parametres.
  *
- * (c) 2023 Dimitri Sitchet Tomkeu <devcode.dst@gmail.com>
+ * (c) 2025 Dimitri Sitchet Tomkeu <devcode.dst@gmail.com>
  *
  * For the full copyright and license information, please view
  * the LICENSE file that was distributed with this source code.
@@ -23,14 +23,14 @@ class CreateParametresTable extends Migration
 
     public function __construct()
     {
-		$this->config = (object) config('parametres');
-		$this->group  = $this->config->database['group'] ?? 'default';
+        $this->config = (object) config('parametres');
+        $this->group  = $this->config->database['group'] ?? 'default';
     }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function up(): void
+    /**
+     * {@inheritDoc}
+     */
+    public function up(): void
     {
         $this->create($this->config->database['table'], static function (Structure $table) {
             $table->id();
@@ -45,6 +45,9 @@ class CreateParametresTable extends Migration
         });
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function down(): void
     {
         $this->dropIfExists($this->config->database['table']);

@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * This file is part of BlitzPHP Parametres.
+ *
+ * (c) 2025 Dimitri Sitchet Tomkeu <devcode.dst@gmail.com>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace BlitzPHP\Parametres\Handlers;
 
 use BlitzPHP\Database\Builder\BaseBuilder;
@@ -28,7 +37,7 @@ class DatabaseHandler extends ArrayHandler
     /**
      * Tableau des contextes qui ont été stockés.
      *
-     * @var null[]|string[]
+     * @var list<null>|list<string>
      */
     private array $hydrated = [];
 
@@ -40,7 +49,7 @@ class DatabaseHandler extends ArrayHandler
     public function __construct()
     {
         $this->config  = (object) config('parametres');
-        $this->db      =  (new ConnectionResolver)->connect($this->config->database['group']);
+        $this->db      = (new ConnectionResolver())->connect($this->config->database['group']);
         $this->builder = $this->db->table($this->config->database['table']);
     }
 
@@ -57,7 +66,7 @@ class DatabaseHandler extends ArrayHandler
     /**
      * Tentative d'extraction d'une valeur de la base de données.
      * Pour améliorer les performances, toutes les valeurs sont lues et stockées lors du premier appel
-	 * pour chaque contexte, puis récupérées dans la base de données.
+     * pour chaque contexte, puis récupérées dans la base de données.
      *
      * @return mixed|null
      */
@@ -92,18 +101,18 @@ class DatabaseHandler extends ArrayHandler
             // ...sinon l'insérer
         } else {
             $result = $this->builder->insert([
-				'file'       => $file,
-				'key'        => $property,
-				'value'      => $prepared,
-				'type'       => $type,
-				'context'    => $context,
-				'created_at' => $time,
-				'updated_at' => $time,
-			]);
+                'file'       => $file,
+                'key'        => $property,
+                'value'      => $prepared,
+                'type'       => $type,
+                'context'    => $context,
+                'created_at' => $time,
+                'updated_at' => $time,
+            ]);
         }
 
-		if (! $result) {
-            throw new RuntimeException($this->db->error()['message']?? 'Erreur d\'écriture dans la base de données.');
+        if (! $result) {
+            throw new RuntimeException($this->db->error()['message'] ?? 'Erreur d\'écriture dans la base de données.');
         }
 
         // Mise à jour du stockage
