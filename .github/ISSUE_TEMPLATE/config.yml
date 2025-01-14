@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Poser une question
+    url: https://github.com/:vendor_name/:package_name/discussions/new?category=q-a
+    about: Demandez de l'aide à la communauté
+  - name: Demander une fonctionnalité
+    url: https://github.com/:vendor_name/:package_name/discussions/new?category=ideas
+    about: Partagez des idées de nouvelles fonctionnalités
+  - name: Signaler un problème de sécurité
+    url: https://github.com/:vendor_name/:package_name/security/policy
+    about: Découvrez comment nous signaler les bugs sensibles

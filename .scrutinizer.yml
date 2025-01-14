@@ -1,0 +1,33 @@
+build:
+  nodes:
+    analysis:
+      project_setup:
+        override: true
+      tests:
+        override:
+          - php-scrutinizer-run
+          -
+            command: 'vendor/bin/kahlan --reporter=verbose --clover=clover.xml'
+            coverage:
+                file: 'clover.xml'
+                format: 'clover'
+            use_website_config: true
+    tests: true
+
+filter:
+  excluded_paths: [spec/*]
+
+checks:
+  php: true
+
+coding_style:
+  php:
+    spaces:
+      around_operators:
+        bitwise: false
+        concatenation: true
+
+tools:
+  external_code_coverage:
+    timeout: 600
+    runs: 3

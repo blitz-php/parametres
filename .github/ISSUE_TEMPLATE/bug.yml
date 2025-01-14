@@ -1,0 +1,58 @@
+name: Rapport d'erreur
+description: Signaler un problème ou un bug avec le package
+title: "[Bug]: "
+labels: ["bug"]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Nous sommes désolés d'apprendre que vous avez un problème. Pouvez-vous nous aider à le résoudre en fournissant les détails suivants.
+    - type: textarea
+      id: what-happened
+      attributes:
+          label: Ce qui s'est passé?
+          description: À quoi vous attendiez-vous ?
+          placeholder: Je ne peux pas actuellement faire X chose parce que quand je le fais, cela casse X chose.
+      validations:
+          required: true
+    - type: textarea
+      id: how-to-reproduce
+      attributes:
+          label: Comment reproduire le bug
+          description: Comment cela s'est-il produit, veuillez ajouter toutes les valeurs de configuration utilisées et fournir un ensemble d'étapes fiables si possible.
+          placeholder: Quand je fais X, je vois Y.
+      validations:
+          required: true
+    - type: input
+      id: package-version
+      attributes:
+          label: Version du paquet
+          description: Quelle version de notre package utilisez-vous ? S'il vous plaît soyez aussi précis que possible
+          placeholder: 2.0.0
+      validations:
+          required: true
+    - type: input
+      id: php-version
+      attributes:
+          label: Version PHP
+          description: Quelle version de PHP utilisez-vous ? S'il vous plaît soyez aussi précis que possible
+          placeholder: 8.2.0
+      validations:
+          required: true
+    - type: dropdown
+      id: operating-systems
+      attributes:
+        label: Avec quels systèmes d'exploitation cela se produit-il ?
+        description: Vous pouvez en sélectionner plusieurs.
+        multiple: true
+        options:
+        - macOS
+        - Windows
+        - Linux
+    - type: textarea
+      id: notes
+      attributes:
+          label: Notes
+          description: Utilisez ce champ pour fournir toute autre note qui, selon vous, pourrait être pertinente au problème.
+      validations:
+          required: false
