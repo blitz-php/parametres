@@ -30,12 +30,17 @@ class ClearParametres extends Command
      */
     protected $description = 'Efface tous les paramètres de la base de données.';
 
+	/** {@inheritDoc} */
+    protected $options = [
+        '--yes|-y'  => 'Lance la suppression des paramètres sans demander une confirmation.',
+	];
+
     /**
      * {@inheritDoc}
      */
     public function execute(array $params)
     {
-        if (! $this->confirm('Cette opération supprimera tous les paramètres de la base de données. Êtes-vous sûr de vouloir continuer ?')) {
+		if (! ($this->option('yes') || $this->confirm('Cette opération supprimera tous les paramètres de la base de données. Êtes-vous sûr de vouloir continuer ?', 'n'))) {
             return;
         }
 
