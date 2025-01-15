@@ -23,7 +23,7 @@ class ArrayHandler extends BaseHandler
      * Stockage pour les paramètres généraux.
      * Format: ['file' => ['property' => ['value', 'type']]]
      *
-     * @var array<string,array<string,array>>
+     * @var array<string,array<string,array<mixed>>>
      */
     private array $general = [];
 
@@ -31,7 +31,7 @@ class ArrayHandler extends BaseHandler
      * Stockage des paramètres contextuels.
      * Format: ['context' => ['file' => ['property' => ['value', 'type']]]]
      *
-     * @var array<string,array|null>
+     * @var array<string,array<mixed>|null>
      */
     private array $contexts = [];
 

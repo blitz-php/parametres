@@ -15,13 +15,13 @@ if (! function_exists('parametre')) {
     /**
      * Fournit une interface pratique au service Paramètres.
      *
-     * @phpstan-return ($key is null ? Parametres : ($value is null ? array|bool|float|int|object|string|null : void))
+     * @phpstan-return ($key is null ? Parametres : ($value is null ? array<mixed>|bool|float|int|object|string|null : void))
      *
      * @param mixed|null $value
      *
-     * @return array|bool|float|int|object|Parametres|string|void|null
+     * @return array<mixed>|bool|float|int|object|Parametres|string|void|null
      */
-    function parametre(?string $key = null, $value = null): mixed
+    function parametre(?string $key = null, $value = null)
     {
         /** @var Parametres $parametre */
         $parametre = service('parametres');
@@ -36,6 +36,6 @@ if (! function_exists('parametre')) {
         }
 
         // Definition de la valeur
-        return $parametre->set($key, $value);
+        $parametre->set($key, $value);
     }
 }

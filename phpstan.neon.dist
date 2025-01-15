@@ -1,4 +1,9 @@
+includes:
+	- phpstan-baseline.php
+
 parameters:
-    level: 4
+    level: 6
     paths:
         - src
+    bootstrapFiles:
+        - spec/bootstrap.php

@@ -44,7 +44,7 @@ class DatabaseHandler extends ArrayHandler
     private stdClass $config;
 
     /**
-     * Stores the configured database table.
+     * @param array<string,mixed> $config
      */
     public function __construct(array $config = [])
     {

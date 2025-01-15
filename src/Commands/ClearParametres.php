@@ -37,6 +37,8 @@ class ClearParametres extends Command
 
     /**
      * {@inheritDoc}
+	 *
+	 * @return void
      */
     public function execute(array $params)
     {

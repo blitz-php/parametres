@@ -18,6 +18,8 @@ class Services extends BaseService
 {
     /**
      * Renvoie la classe du gestionnaire de paramètres.
+	 *
+	 * @param array<mixed>|null $config
      */
     public static function parametres(?array $config = null, bool $shared = true): Parametres
     {
