@@ -25,6 +25,6 @@ class Services extends BaseService
             return static::$instances[Parametres::class];
         }
 
-        return new Parametres($config ?? config('parametres'));
+        return static::$instances[Parametres::class] = new Parametres($config ?? config('parametres'));
     }
 }

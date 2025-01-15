@@ -36,6 +36,6 @@ if (! function_exists('parametre')) {
         }
 
         // Definition de la valeur
-        $parametre->set($key, $value);
+        return $parametre->set($key, $value);
     }
 }

@@ -11,7 +11,7 @@ declare(strict_types=1);
  * the LICENSE file that was distributed with this source code.
  */
 
-namespace BlitzPHP\Schild\Database\Migrations;
+namespace BlitzPHP\Parametres\Database\Migrations;
 
 use BlitzPHP\Database\Migration\Migration;
 use BlitzPHP\Database\Migration\Structure;

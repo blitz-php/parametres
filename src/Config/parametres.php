@@ -19,7 +19,7 @@ return [
      *
      * @var list<string>
      */
-    'handlers' => ['database'],
+    'handlers' => ['array'],
 
     /**
      * Paramètres du gestionnaire "Array".
@@ -34,7 +34,7 @@ return [
      */
     'database' => [
         'class'     => DatabaseHandler::class,
-        'table'     => 'settings',
+        'table'     => 'parametres',
         'group'     => null,
         'writeable' => true,
     ],
