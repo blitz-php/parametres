@@ -48,11 +48,11 @@ class DatabaseHandler extends ArrayHandler
      */
     public function __construct(array $config = [])
     {
-		if ($config === []) {
-			$config = config('parametres.database', []);
-		}
+        if ($config === []) {
+            $config = config('parametres.database', []);
+        }
 
-        $this->config  = (object) $config;
+        $this->config = (object) $config;
 
         $this->db      = (new ConnectionResolver())->connect($this->config->group);
         $this->builder = $this->db->table($this->config->table);
@@ -95,18 +95,18 @@ class DatabaseHandler extends ArrayHandler
         if ($this->has($file, $property, $context)) {
             $result = $this->builder()->where('file', $file)->where('key', $property);
 
-			if ($context === null) {
-				$result = $result->whereNull('context');
-			} else {
-				$result = $result->where('context', $context);
-			}
+            if ($context === null) {
+                $result = $result->whereNull('context');
+            } else {
+                $result = $result->where('context', $context);
+            }
 
-			$result = $result->update([
-				'value'      => $prepared,
-				'type'       => $type,
-				'context'    => $context,
-				'updated_at' => $time,
-			]);
+            $result = $result->update([
+                'value'      => $prepared,
+                'type'       => $type,
+                'context'    => $context,
+                'updated_at' => $time,
+            ]);
             // ...sinon l'insérer
         } else {
             $result = $this->builder()->insert([
@@ -137,15 +137,15 @@ class DatabaseHandler extends ArrayHandler
 
         // Supprimer de la base de données
 
-		$builder = $this->builder()->where('file', $file)->where('key', $property);
+        $builder = $this->builder()->where('file', $file)->where('key', $property);
 
-	   	if (null === $context) {
-			$builder->whereNull('context');
-	   	} else {
-			$builder->where('context', $context);
-	   	}
+        if (null === $context) {
+            $builder->whereNull('context');
+        } else {
+            $builder->where('context', $context);
+        }
 
-		$result = $builder->delete();
+        $result = $builder->delete();
 
         if (! $result) {
             throw new RuntimeException($this->db->error()['message'] ?? 'Erreur d\'écriture dans la base de données.');
@@ -180,7 +180,7 @@ class DatabaseHandler extends ArrayHandler
 
         if ($context === null) {
             $this->hydrated[] = null;
-            $query = $this->builder()->whereNull('context');
+            $query            = $this->builder()->whereNull('context');
         } else {
             $query = $this->builder()->where('context', $context);
 
@@ -198,8 +198,8 @@ class DatabaseHandler extends ArrayHandler
         }
     }
 
-	private function builder(): BaseBuilder
-	{
-		return $this->builder->reset()->table($this->config->table);
-	}
+    private function builder(): BaseBuilder
+    {
+        return $this->builder->reset()->table($this->config->table);
+    }
 }

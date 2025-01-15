@@ -38,8 +38,8 @@ class Parametres
 
     /**
      * Saisit les instances de nos gestionnaires.
-	 *
-	 * @param array<string, mixed> $config
+     *
+     * @param array<string, mixed> $config
      */
     public function __construct(array $config)
     {
@@ -159,8 +159,8 @@ class Parametres
     /**
      * Étant donné une clé dans la syntaxe fichier.champ,
      * divise les valeurs et détermine le nom du fichier.
-	 *
-	 * @return list<string|mixed>
+     *
+     * @return list<mixed|string>
      */
     private function prepareFileAndProperty(string $key): array
     {

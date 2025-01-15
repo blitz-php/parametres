@@ -19,7 +19,7 @@ if (! function_exists('parametre')) {
      *
      * @param mixed|null $value
      *
-     * @return array<mixed>|bool|float|int|object|Parametres|string|void|null
+     * @return bool|float|int|list<mixed>|object|Parametres|string|void|null
      */
     function parametre(?string $key = null, $value = null)
     {

@@ -11,8 +11,8 @@
 
 use BlitzPHP\Parametres\Config\Services;
 
-defined('HOME_PATH')     || define('HOME_PATH', realpath(rtrim(getcwd(), '\\/ ')) . DIRECTORY_SEPARATOR);
-defined('VENDOR_PATH')   || define('VENDOR_PATH', realpath(HOME_PATH . 'vendor') . DIRECTORY_SEPARATOR);
+defined('HOME_PATH')   || define('HOME_PATH', realpath(rtrim(getcwd(), '\\/ ')) . DIRECTORY_SEPARATOR);
+defined('VENDOR_PATH') || define('VENDOR_PATH', realpath(HOME_PATH . 'vendor') . DIRECTORY_SEPARATOR);
 
 define('APP_NAMESPACE', 'App');
 define('APP_PATH', __DIR__ . '/_support/');
@@ -30,5 +30,5 @@ config()->load('parametres', __DIR__ . '/../src/Config/parametres.php');
 
 // Fakes configurations
 config()->ghost('test')->set('test', [
-	'site_name' => 'Parametres Test',
+    'site_name' => 'Parametres Test',
 ]);
