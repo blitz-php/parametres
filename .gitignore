@@ -108,3 +108,5 @@ nb-configuration.xml
 codeclimate.json
 coveralls.json
 clover.xml
+
+spec/_support/database.sqlite
