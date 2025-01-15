@@ -46,11 +46,16 @@ class DatabaseHandler extends ArrayHandler
     /**
      * Stores the configured database table.
      */
-    public function __construct()
+    public function __construct(array $config = [])
     {
-        $this->config  = (object) config('parametres');
-        $this->db      = (new ConnectionResolver())->connect($this->config->database['group']);
-        $this->builder = $this->db->table($this->config->database['table']);
+		if ($config === []) {
+			$config = config('parametres.database', []);
+		}
+
+        $this->config  = (object) $config;
+
+        $this->db      = (new ConnectionResolver())->connect($this->config->group);
+        $this->builder = $this->db->table($this->config->table);
     }
 
     /**
@@ -88,19 +93,23 @@ class DatabaseHandler extends ArrayHandler
 
         // S'il a été stocké, nous devons le mettre à jour
         if ($this->has($file, $property, $context)) {
-            $result = $this->builder
-                ->where('file', $file)
-                ->where('key', $property)
-                ->where('context', $context)
-                ->update([
-                    'value'      => $prepared,
-                    'type'       => $type,
-                    'context'    => $context,
-                    'updated_at' => $time,
-                ]);
+            $result = $this->builder()->where('file', $file)->where('key', $property);
+
+			if ($context === null) {
+				$result = $result->whereNull('context');
+			} else {
+				$result = $result->where('context', $context);
+			}
+
+			$result = $result->update([
+				'value'      => $prepared,
+				'type'       => $type,
+				'context'    => $context,
+				'updated_at' => $time,
+			]);
             // ...sinon l'insérer
         } else {
-            $result = $this->builder->insert([
+            $result = $this->builder()->insert([
                 'file'       => $file,
                 'key'        => $property,
                 'value'      => $prepared,
@@ -127,11 +136,16 @@ class DatabaseHandler extends ArrayHandler
         $this->hydrate($context);
 
         // Supprimer de la base de données
-        $result = $this->builder
-            ->where('file', $file)
-            ->where('key', $property)
-            ->where('context', $context)
-            ->delete();
+
+		$builder = $this->builder()->where('file', $file)->where('key', $property);
+
+	   	if (null === $context) {
+			$builder->whereNull('context');
+	   	} else {
+			$builder->where('context', $context);
+	   	}
+
+		$result = $builder->delete();
 
         if (! $result) {
             throw new RuntimeException($this->db->error()['message'] ?? 'Erreur d\'écriture dans la base de données.');
@@ -146,7 +160,7 @@ class DatabaseHandler extends ArrayHandler
      */
     public function flush(): void
     {
-        $this->builder->truncate();
+        $this->builder()->truncate();
 
         parent::flush();
     }
@@ -166,10 +180,9 @@ class DatabaseHandler extends ArrayHandler
 
         if ($context === null) {
             $this->hydrated[] = null;
-
-            $query = $this->builder->where('context', null);
+            $query = $this->builder()->whereNull('context');
         } else {
-            $query = $this->builder->where('context', $context);
+            $query = $this->builder()->where('context', $context);
 
             // Si le général n'a pas été hydraté, nous le ferons en même temps.
             if (! in_array(null, $this->hydrated, true)) {
@@ -184,4 +197,9 @@ class DatabaseHandler extends ArrayHandler
             $this->setStored($row->file, $row->key, $this->parseValue($row->value, $row->type), $row->context);
         }
     }
+
+	private function builder(): BaseBuilder
+	{
+		return $this->builder->reset()->table($this->config->table);
+	}
 }

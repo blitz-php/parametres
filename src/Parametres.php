@@ -48,7 +48,7 @@ class Parametres
                 continue;
             }
 
-            $this->handlers[$handler] = new $class();
+            $this->handlers[$handler] = new $class($config[$handler]);
             $this->options[$handler]  = $config[$handler];
         }
     }
