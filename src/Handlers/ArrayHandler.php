@@ -79,7 +79,7 @@ class ArrayHandler extends BaseHandler
     /**
      * Vérifie si cette valeur est stockée.
      */
-    protected function hasStored(string $file, string $property, ?string $context): bool
+    protected function hasStored(string $file, string $property, ?string $context = null): bool
     {
         if ($context === null) {
             return isset($this->general[$file]) && array_key_exists($property, $this->general[$file]);
@@ -93,7 +93,7 @@ class ArrayHandler extends BaseHandler
      *
      * @return mixed|null
      */
-    protected function getStored(string $file, string $property, ?string $context): mixed
+    protected function getStored(string $file, string $property, ?string $context = null): mixed
     {
         if (! $this->has($file, $property, $context)) {
             return null;
@@ -107,7 +107,7 @@ class ArrayHandler extends BaseHandler
     /**
      * Ajoute des valeurs à la mémoire.
      */
-    protected function setStored(string $file, string $property, mixed $value, ?string $context): void
+    protected function setStored(string $file, string $property, mixed $value, ?string $context = null): void
     {
         $type  = gettype($value);
         $value = $this->prepareValue($value);
