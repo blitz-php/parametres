@@ -22,6 +22,7 @@ define('SYST_PATH', VENDOR_PATH . 'blitz-php/framework/src/');
 
 require_once SYST_PATH . 'Constants/constants.php';
 require_once SYST_PATH . 'Helpers/common.php';
+require_once SYST_PATH . 'Helpers/path.php';
 
 Services::autoloader()->initialize()->register();
 Services::container()->initialize();

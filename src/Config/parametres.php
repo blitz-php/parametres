@@ -11,6 +11,7 @@
 
 use BlitzPHP\Parametres\Handlers\ArrayHandler;
 use BlitzPHP\Parametres\Handlers\DatabaseHandler;
+use BlitzPHP\Parametres\Handlers\FileHandler;
 
 return [
     /**
@@ -36,6 +37,15 @@ return [
         'class'     => DatabaseHandler::class,
         'table'     => 'parametres',
         'group'     => null,
+        'writeable' => true,
+    ],
+
+    /**
+     * Paramètres du gestionnaire "File".
+     */
+    'file' => [
+        'class'     => FileHandler::class,
+        'path'      => storage_path('app/.parameters.json'),
         'writeable' => true,
     ],
 ];
