@@ -20,7 +20,7 @@ return [
      *
      * @var list<string>
      */
-    'handlers' => ['array'],
+    'handlers' => ['file'],
 
     /**
      * Paramètres du gestionnaire "Array".
