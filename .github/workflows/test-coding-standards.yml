@@ -1,8 +1,6 @@
 name: Coding Standards
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
   pull_request:
     paths:
       - '**.php'
@@ -15,10 +13,10 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-      
+
 permissions:
   contents: read
-      
+
 jobs:
   lint:
     name: PHP ${{ matrix.php-version }} Lint with PHP CS Fixer
@@ -54,11 +52,8 @@ jobs:
             ${{ runner.os }}-${{ matrix.php-version }}-
             ${{ runner.os }}-
 
-      - name: Setup Composer's GitHub OAuth access
-        run: composer config --global github-oauth.github.com ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install dependencies
         run: composer update --ansi --no-interaction
 
-      - name: Run PHP CS Fixer
-        run: vendor/bin/php-cs-fixer fix --verbose --ansi --dry-run --using-cache=no --diff
+      - name: Run lint
+        run: composer cs

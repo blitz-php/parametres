@@ -1,6 +1,12 @@
 name: Check & fix styling
 
-on: [push]
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
 
 permissions:
   contents: write
@@ -15,10 +21,11 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Run PHP CS Fixer
-        uses: docker://oskarstark/php-cs-fixer-ga
-        with:
-          args: --config=.php-cs-fixer.dist.php --allow-risky=yes
+      - name: Install Composer packages
+        run: composer update --ansi --no-interaction
+
+      - name: Run PHP-CS-Fixer Lint
+        run: vendor/bin/php-cs-fixer fix
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
