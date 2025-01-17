@@ -43,6 +43,10 @@
 			"Composer\\Config::disableProcessTimeout",
 			"vendor/bin/kahlan --coverage=4 --reporter=verbose --clover=clover.xml"
 		],
+		"cs": [
+            "Composer\\Config::disableProcessTimeout",
+            "php-cs-fixer check --ansi --verbose --diff"
+        ],
         "cs:fix": [
 			"Composer\\Config::disableProcessTimeout",
 			"vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes"
@@ -58,7 +62,8 @@
     },
     "scripts-descriptions": {
         "test": "Execute les tests unitaires",
-        "cs:fix": "Corriger le style de codage",
+        "cs": "Verifie le style de codage",
+        "cs:fix": "Corrige le style de codage",
 		"phpstan:baseline": "Exécute PHPStan puis transférer toutes les erreurs vers le fichier de baseline",
         "phpstan:check": "Exécute PHPStan avec la prise en charge des identifiants"
     },
