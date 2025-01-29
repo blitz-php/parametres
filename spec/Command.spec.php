@@ -13,7 +13,7 @@ use function Kahlan\expect;
 
 describe('Parametres / Command', function () {
     it('La commande `parametres:clear` fonctionne', function () {
-		config()->set('parametres.file.path', $path = storage_path('.parametres.json'));
+        config()->set('parametres.file.path', $path = storage_path('.parametres.json'));
 
         $parametres = service('parametres');
 

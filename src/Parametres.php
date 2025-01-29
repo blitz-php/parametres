@@ -67,9 +67,10 @@ class Parametres
         foreach ($this->handlers as $handler) {
             if ($handler->has($file, $property, $context)) {
                 if (is_array($data = $handler->get($file, $property, $context)) && $property !== $dotProperty) {
-					return Arr::getRecursive($data, str_replace($property . '.', '', $dotProperty));
-				}
-				return $data;
+                    return Arr::getRecursive($data, str_replace($property . '.', '', $dotProperty));
+                }
+
+                return $data;
             }
         }
 
@@ -168,9 +169,9 @@ class Parametres
      */
     private function prepareFileAndProperty(string $key): array
     {
-		$parts    = $this->parseDotSyntax($key);
-		$file     = array_shift($parts);
-		$property = $parts[0];
+        $parts    = $this->parseDotSyntax($key);
+        $file     = array_shift($parts);
+        $property = $parts[0];
 
         $config = config($file);
 

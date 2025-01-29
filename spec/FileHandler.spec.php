@@ -339,43 +339,43 @@ describe('Parametres / FileHandler', function () {
         ]))->toBeTruthy();
     });
 
-	describe('Recuperation recursive', function () {
-		it('Recuperation recursive des configurations', function () {
-			config()->ghost('auth')->set('auth', [
-				'session' => $expected = [
-					'field'             => 'user',
-					'allow_remembering' => true,
-					'depth' => [
-						'field'             => 'id',
+    describe('Recuperation recursive', function () {
+        it('Recuperation recursive des configurations', function () {
+            config()->ghost('auth')->set('auth', [
+                'session' => $expected = [
+                    'field'             => 'user',
+                    'allow_remembering' => true,
+                    'depth'             => [
+                        'field'             => 'id',
                         'allow_remembering' => false,
-                        'depth' => null, // Cas particulier pour le dernier niveau
-					]
-				],
-			]);
+                        'depth'             => null, // Cas particulier pour le dernier niveau
+                    ],
+                ],
+            ]);
 
-			expect(parametre('auth.session'))->toBe($expected);
-			expect(parametre('auth.session.field'))->toBe($expected['field']);
-			expect(parametre('auth.session.allow_remembering'))->toBeTruthy();
-			expect(parametre('auth.session.depth.field'))->toBe('id');
-			expect(parametre('auth.session.depth.allow_remembering'))->toBeFalsy();
-		});
+            expect(parametre('auth.session'))->toBe($expected);
+            expect(parametre('auth.session.field'))->toBe($expected['field']);
+            expect(parametre('auth.session.allow_remembering'))->toBeTruthy();
+            expect(parametre('auth.session.depth.field'))->toBe('id');
+            expect(parametre('auth.session.depth.allow_remembering'))->toBeFalsy();
+        });
 
-		it('Recuperation recursive des parametres du fichier json', function () {
-			parametre()->set('auth.session', $expected = [
-				'field'             => 'user',
-				'allow_remembering' => true,
-				'depth' => [
-					'field'             => 'id',
-					'allow_remembering' => false,
-					'depth' => null, // Cas particulier pour le dernier niveau
-				]
-			]);
+        it('Recuperation recursive des parametres du fichier json', function () {
+            parametre()->set('auth.session', $expected = [
+                'field'             => 'user',
+                'allow_remembering' => true,
+                'depth'             => [
+                    'field'             => 'id',
+                    'allow_remembering' => false,
+                    'depth'             => null, // Cas particulier pour le dernier niveau
+                ],
+            ]);
 
-			expect(parametre('auth.session'))->toBe($expected);
-			expect(parametre('auth.session.field'))->toBe($expected['field']);
-			expect(parametre('auth.session.allow_remembering'))->toBeTruthy();
-			expect(parametre('auth.session.depth.field'))->toBe('id');
-			expect(parametre('auth.session.depth.allow_remembering'))->toBeFalsy();
-		});
-	});
+            expect(parametre('auth.session'))->toBe($expected);
+            expect(parametre('auth.session.field'))->toBe($expected['field']);
+            expect(parametre('auth.session.allow_remembering'))->toBeTruthy();
+            expect(parametre('auth.session.depth.field'))->toBe('id');
+            expect(parametre('auth.session.depth.allow_remembering'))->toBeFalsy();
+        });
+    });
 });
