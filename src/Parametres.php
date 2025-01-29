@@ -12,6 +12,7 @@
 namespace BlitzPHP\Parametres;
 
 use BlitzPHP\Parametres\Handlers\BaseHandler;
+use BlitzPHP\Utilities\Iterable\Arr;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -60,12 +61,15 @@ class Parametres
      */
     public function get(string $key, ?string $context = null): mixed
     {
-        [$file, $property, $config] = $this->prepareFileAndProperty($key);
+        [$file, $property, $config, $dotProperty] = $this->prepareFileAndProperty($key);
 
         // Vérifier chacun de nos gestionnaires
         foreach ($this->handlers as $handler) {
             if ($handler->has($file, $property, $context)) {
-                return $handler->get($file, $property, $context);
+                if (is_array($data = $handler->get($file, $property, $context)) && $property !== $dotProperty) {
+					return Arr::getRecursive($data, str_replace($property . '.', '', $dotProperty));
+				}
+				return $data;
             }
         }
 
@@ -74,7 +78,7 @@ class Parametres
             return $this->get($key);
         }
 
-        return $config[$property] ?? null;
+        return Arr::getRecursive($config, $dotProperty);
     }
 
     /**
@@ -164,10 +168,12 @@ class Parametres
      */
     private function prepareFileAndProperty(string $key): array
     {
-        [$file, $property] = $this->parseDotSyntax($key);
+		$parts    = $this->parseDotSyntax($key);
+		$file     = array_shift($parts);
+		$property = $parts[0];
 
         $config = config($file);
 
-        return [$file, $property, $config];
+        return [$file, $property, $config, implode('.', $parts)];
     }
 }

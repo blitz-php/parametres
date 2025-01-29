@@ -18,6 +18,8 @@ use function Kahlan\expect;
 describe('Parametres / Parametres', function () {
     beforeEach(function () {
         config()->reset('parametres');
+		config()->set('parametres.handlers', ['array']);
+
         $this->parametres = new Parametres(config('parametres'));
     });
 
