@@ -28,6 +28,7 @@ Services::autoloader()->initialize()->register();
 Services::container()->initialize();
 
 config()->load('parametres', __DIR__ . '/../src/Config/parametres.php');
+config()->set('parametres.handlers', ['array']);
 
 // Fakes configurations
 config()->ghost('test')->set('test', [

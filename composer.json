@@ -28,6 +28,9 @@
         "psr-4": {
             "BlitzPHP\\Parametres\\": "src"
         },
+		"exclude-from-classmap": [
+            "**/Database/Migrations/**"
+        ],
 		"files": [
             "src/Config/helpers.php"
         ]
