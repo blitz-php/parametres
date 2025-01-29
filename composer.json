@@ -22,7 +22,7 @@
         "blitz-php/database": "^0.8.1",
         "blitz-php/framework": "^0.11",
         "kahlan/kahlan": "^6.0",
-        "phpstan/phpstan": "^1.11"
+        "phpstan/phpstan": "^2.1"
     },
     "autoload": {
         "psr-4": {
