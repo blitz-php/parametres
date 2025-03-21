@@ -20,7 +20,7 @@
     "require-dev": {
         "blitz-php/coding-standard": "^1.4",
         "blitz-php/database": "^0.8.1",
-        "blitz-php/framework": "^0.11",
+        "blitz-php/framework": "^0.12",
         "kahlan/kahlan": "^6.0",
         "phpstan/phpstan": "^1.11"
     },
