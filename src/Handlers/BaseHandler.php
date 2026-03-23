@@ -60,6 +60,16 @@ abstract class BaseHandler
     }
 
     /**
+     * Tous les gestionnaires prenant en charge la méthode `deferWrites` DOIVENT prendre en charge cette méthode.
+     *
+     * @throws RuntimeException
+     */
+    public function persistPendingProperties(): void
+    {
+        throw new RuntimeException('La méthode `PersistPendingProperties` n\'est pas implémentée pour le gestionnaire de paramètres actuel.');
+    }
+
+    /**
      * Prend en charge la conversion de certains types d'objets afin qu'ils puissent
      * être stockés en toute sécurité et réhydratés dans les fichiers de configuration.
      *
