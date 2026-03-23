@@ -46,9 +46,10 @@ return [
      * Paramètres du gestionnaire "Json".
      */
     'json' => [
-        'class'     => JsonHandler::class,
-        'file'      => storage_path('app/.parametres.json'),
-        'writeable' => true,
+		'class'        => JsonHandler::class,
+		'file'         => storage_path('app/.parametres.json'),
+		'writeable'    => true,
+		'defer_writes' => false,
     ],
 
     /**
