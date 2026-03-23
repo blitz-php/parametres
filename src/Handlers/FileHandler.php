@@ -11,26 +11,35 @@
 
 namespace BlitzPHP\Parametres\Handlers;
 
-use BlitzPHP\Parametres\Exceptions\ParametresException;
-use BlitzPHP\Utilities\Date;
-use BlitzPHP\Utilities\Iterable\Collection;
+use RuntimeException;
 
+/**
+ * Fournit une persistance basée sur les fichiers pour les paramètres.
+ * Utilise ArrayHandler pour le stockage afin de minimiser les opérations d'entrée/sortie.
+ */
 class FileHandler extends ArrayHandler
 {
     /**
-     * Chemin d'accès du fichier de stockage des paramètres
-     */
-    private string $path;
-
-    /**
-     * Tableau des contextes qui ont été stockés.
+     * Tableau des combinaisons fichier+contexte qui ont été chargées depuis le disque.
+     * Format : ['fichier::contexte', 'fichier::null', ...]
      *
-     * @var list<null>|list<string>
+     * @var list<string>
      */
     private array $hydrated = [];
 
     /**
-     * @param array<string,mixed> $config
+     * Chemin de base où les fichiers de paramètres sont stockés.
+     */
+    private string $path;
+
+    private object $config;
+
+    /**
+     * Configure le chemin du fichier et s'assure qu'il existe.
+     *
+     * @param array<string,mixed> $config Configuration du gestionnaire de fichiers
+     *
+     * @throws RuntimeException Si le répertoire ne peut pas être créé ou n'est pas accessible en écriture
      */
     public function __construct(array $config = [])
     {
@@ -38,15 +47,18 @@ class FileHandler extends ArrayHandler
             $config = config('parametres.file', []);
         }
 
-        if ('' === $this->path = ($config['path'] ?? '')) {
-            throw ParametresException::fileForStorageNotDefined();
+        $this->config = (object) $config;
+        $this->path   = rtrim($this->config->path ?? storage_path('app/parametres') . DIRECTORY_SEPARATOR);
+
+        if (! is_dir($this->path) && (! mkdir($this->path, 0755, true) && ! is_dir($this->path))) {
+            throw new RuntimeException('Impossible de créer le répertoire des paramètres : ' . $this->path);
         }
-        if (! is_dir(pathinfo($this->path, PATHINFO_DIRNAME))) {
-            throw ParametresException::directoryOfFileNotFound($this->path);
+
+        if (! is_writable($this->path)) {
+            throw new RuntimeException('Le répertoire des paramètres n\'est pas accessible en écriture : ' . $this->path);
         }
-        if (! file_exists($this->path)) {
-            file_put_contents($this->path, '[]');
-        }
+
+        $this->setupDeferredWrites($this->config->defer_writes ?? false);
     }
 
     /**
@@ -54,7 +66,7 @@ class FileHandler extends ArrayHandler
      */
     public function has(string $file, string $property, ?string $context = null): bool
     {
-        $this->hydrate($context);
+        $this->hydrate($file, $context);
 
         return $this->hasStored($file, $property, $context);
     }
@@ -62,121 +74,297 @@ class FileHandler extends ArrayHandler
     /**
      * {@inheritDoc}
      */
-    public function set(string $file, string $property, mixed $value = null, ?string $context = null): void
+    public function get(string $file, string $property, ?string $context = null): mixed
     {
-        $time     = Date::now()->format('Y-m-d H:i:s');
-        $type     = gettype($value);
-        $prepared = $this->prepareValue($value);
+        $this->hydrate($file, $context);
 
-        $data = $this->getData();
-
-        // S'il a été stocké, nous devons le mettre à jour
-        if ($this->has($file, $property, $context)) {
-            $updated = $data->where('file', $file)->where('key', $property)->whereStrict('context', $context)->first();
-
-            $data = $data->map(fn ($item) => $item['id'] !== $updated['id'] ? $item : array_merge($item, [
-                'value'      => $prepared,
-                'type'       => $type,
-                'context'    => $context,
-                'updated_at' => $time,
-            ]));
-            // ...sinon l'insérer
-        } else {
-            $data = $data->add([
-                'id'         => uniqid(more_entropy: true),
-                'file'       => $file,
-                'key'        => $property,
-                'value'      => $prepared,
-                'type'       => $type,
-                'context'    => $context,
-                'created_at' => $time,
-                'updated_at' => $time,
-            ]);
-        }
-
-        $this->saveDate($data);
-
-        // Modifier dans la memoire locale
-        $this->setStored($file, $property, $value, $context);
+        return $this->getStored($file, $property, $context);
     }
 
     /**
-     * {@inheritDoc}
+     * Enregistre les valeurs dans un fichier afin de pouvoir les récupérer ultérieurement.
+     *
+     * @throws RuntimeException En cas d'échec d'écriture dans un fichier
+     */
+    public function set(string $file, string $property, mixed $value = null, ?string $context = null): void
+    {
+        $this->hydrate($file, $context);
+
+        // Mise à jour du stockage en mémoire d'abord
+        $this->setStored($file, $property, $value, $context);
+
+        if ($this->deferWrites) {
+            $this->markPending($file, $property, $value, $context);
+        } else {
+            // Pour les écritures immédiates, persister uniquement ce changement de propriété spécifique
+            $this->persist($file, $context, [[
+                'property' => $property,
+                'value'    => $value,
+                'delete'   => false,
+            ]]);
+        }
+    }
+
+    /**
+     * Supprime l'enregistrement du stockage persistant, s'il est trouvé, et du cache local.
+     *
+     * @throws RuntimeException En cas d'échec d'écriture dans un fichier
      */
     public function forget(string $file, string $property, ?string $context = null): void
     {
-        $this->hydrate($context);
+        $this->hydrate($file, $context);
 
-        $data = $this->getData();
-
-        $deleted = $data->where('file', $file)->where('key', $property)->whereStrict('context', $context)->first();
-        $data    = $data->filter(fn ($item) => $item['id'] !== $deleted['id']);
-
-        $this->saveDate($data);
-
-        // Supprimer dans la mémoire locale
+        // Suppression du stockage local
         $this->forgetStored($file, $property, $context);
+
+        if ($this->deferWrites) {
+            $this->markPending($file, $property, null, $context, true);
+        } else {
+            // Pour les écritures immédiates, persister uniquement cette suppression de propriété spécifique
+            $this->persist($file, $context, [[
+                'property' => $property,
+                'value'    => null,
+                'delete'   => true,
+            ]]);
+        }
     }
 
     /**
-     * {@inheritDoc}
+     * Supprime tous les fichiers de paramètres du stockage persistant et vide le cache local.
+     *
+     * @throws RuntimeException En cas d'échec de suppression des fichiers
      */
     public function flush(): void
     {
-        $this->saveDate(collect([]));
+        // Supprimer tous les fichiers .php dans le répertoire principal (fichiers de contexte null)
+        $files = glob($this->path . '*.php', GLOB_NOSORT);
 
+        if ($files === false) {
+            throw new RuntimeException('Impossible de lire le répertoire des paramètres : ' . $this->path);
+        }
+
+        foreach ($files as $file) {
+            if (! unlink($file)) {
+                throw new RuntimeException('Impossible de supprimer le fichier de paramètres : ' . $file);
+            }
+        }
+
+        // Supprimer tous les sous-répertoires de contexte et leur contenu
+        $directories = glob($this->path . '*', GLOB_ONLYDIR | GLOB_NOSORT);
+
+        if ($directories !== false) {
+            foreach ($directories as $directory) {
+                // Supprimer tous les fichiers dans le répertoire
+                $contextFiles = glob($directory . '/*.php', GLOB_NOSORT);
+
+                if ($contextFiles !== false) {
+                    foreach ($contextFiles as $file) {
+                        if (! unlink($file)) {
+                            throw new RuntimeException('Impossible de supprimer le fichier de paramètres : ' . $file);
+                        }
+                    }
+                }
+
+                // Supprimer le répertoire vide
+                if (! rmdir($directory)) {
+                    throw new RuntimeException('Impossible de supprimer le répertoire : ' . $directory);
+                }
+            }
+        }
+
+        // Vider le stockage local et le suivi d'hydratation
         parent::flush();
+        $this->hydrated = [];
     }
 
     /**
-     * Récupère les valeurs de la base de données en vrac pour minimiser les appels.
-     * Le général (null) est toujours récupéré une fois, les contextes sont récupérés dans leur intégralité pour chaque nouvelle requête.
+     * Récupère les valeurs des fichiers en masse pour minimiser les opérations d'entrée/sortie.
+     * Charge toutes les propriétés pour une combinaison fichier+contexte spécifique.
+     *
+     * @throws RuntimeException En cas d'échec de lecture du fichier
      */
-    private function hydrate(?string $context = null): void
+    private function hydrate(string $file, ?string $context): void
     {
-        // Vérification de l'achèvement des travaux
-        if (in_array($context, $this->hydrated, true)) {
+        $key = $this->getHydrationKey($file, $context);
+
+        // Vérifier si déjà chargé
+        if (in_array($key, $this->hydrated, true)) {
             return;
         }
 
-        $data = $this->getData();
+        // Charger le fichier spécifique fichier+contexte
+        $this->loadFromFile($file, $context);
+        $this->hydrated[] = $key;
 
-        if ($context === null) {
-            $this->hydrated[] = null;
-            $data             = $data->whereNull('context');
-        } else {
-            // Si le général n'a pas été hydraté, on l'hydrate donc.
-            if (! in_array(null, $this->hydrated, true)) {
-                $this->hydrated[] = null;
-            } else {
-                $data = $data->where('context', $context);
+        // Charger également le contexte général pour cette classe s'il n'est pas déjà chargé
+        if ($context !== null) {
+            $generalKey = $this->getHydrationKey($file, null);
+
+            if (! in_array($generalKey, $this->hydrated, true)) {
+                $this->loadFromFile($file, null);
+                $this->hydrated[] = $generalKey;
+            }
+        }
+    }
+
+    /**
+     * Charge les paramètres depuis un fichier pour une combinaison fichier+contexte donnée.
+     *
+     * @throws RuntimeException En cas d'échec de lecture du fichier
+     */
+    private function loadFromFile(string $file, ?string $context): void
+    {
+        $filePath = $this->getFilePath($file, $context);
+
+        // Si le fichier n'existe pas, c'est normal - aucun paramètre stocké pour l'instant
+        if (! file_exists($filePath)) {
+            return;
+        }
+
+        // Utiliser include pour obtenir le tableau de données
+        $data = include $filePath;
+
+        if (! is_array($data)) {
+            throw new RuntimeException('Le fichier de paramètres ne retourne pas un tableau : ' . $filePath);
+        }
+
+        // Charger les données dans le stockage en mémoire
+        foreach ($data as $property => $valueData) {
+            if (! is_array($valueData) || ! isset($valueData['value'], $valueData['type'])) {
+                continue;
             }
 
-            $this->hydrated[] = $context;
-        }
-
-        foreach ($data->all() as $row) {
-            $this->setStored($row['file'], $row['key'], $this->parseValue($row['value'], $row['type']), $row['context']);
+            $this->setStored($file, $property, $this->parseValue($valueData['value'], $valueData['type']), $context);
         }
     }
 
     /**
-     * Recupère les données à partir du fichier servant de source de données
+     * Persiste les changements de propriétés spécifiques sur le disque.
+     * Utilisé à la fois pour les écritures immédiates et différées.
+     *
+     * @throws RuntimeException En cas d'échec d'écriture du fichier
      */
-    private function getData(): Collection
+    private function persist(string $file, ?string $context, array $changes): void
     {
-        $data = json_decode(file_get_contents($this->path), true) ?: [];
+        $filePath = $this->getFilePath($file, $context);
 
-        return collect($data);
+        // S'assurer que le répertoire existe (particulièrement pour les sous-répertoires de contexte)
+        $directory = dirname($filePath);
+
+        if (! is_dir($directory) && (! mkdir($directory, 0755, true) && ! is_dir($directory))) {
+            throw new RuntimeException('Impossible de créer le répertoire : ' . $directory);
+        }
+
+        // Ouvrir/créer le fichier pour le verrouillage
+        $lockHandle = fopen($filePath, 'c+b');
+
+        if ($lockHandle === false) {
+            throw new RuntimeException('Impossible d\'ouvrir le fichier pour le verrouillage : ' . $filePath);
+        }
+
+        try {
+            // Acquérir un verrou exclusif
+            if (! flock($lockHandle, LOCK_EX)) {
+                throw new RuntimeException('Impossible d\'acquérir le verrou sur le fichier : ' . $filePath);
+            }
+
+            // Vider le cache de statut du fichier pour obtenir la taille actuelle
+            clearstatcache(true, $filePath);
+
+            $currentData = [];
+
+            if (filesize($filePath) > 0) {
+                $currentData = include $filePath;
+
+                if (! is_array($currentData)) {
+                    $currentData = [];
+                }
+            }
+
+            // Appliquer tous les changements en attente
+            foreach ($changes as $change) {
+                if ($change['delete']) {
+                    // Supprimer explicitement cette propriété
+                    unset($currentData[$change['property']]);
+                } else {
+                    // Définir ou mettre à jour cette propriété
+                    $currentData[$change['property']] = [
+                        'value' => $change['value'],
+                        'type'  => gettype($change['value']),
+                    ];
+                }
+            }
+
+            // Générer le contenu du fichier PHP
+            $content = '<?php' . PHP_EOL . PHP_EOL;
+            $content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
+
+            // Écrire le fichier
+            if (file_put_contents($filePath, $content) === false) {
+                throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
+            }
+
+            @chmod($filePath, 0644);
+        } finally {
+            flock($lockHandle, LOCK_UN);
+            fclose($lockHandle);
+        }
     }
 
     /**
-     * Persiste les données dans le fichier servant de source de données
+     * Persiste toutes les propriétés en attente sur le disque.
+     * Appelé automatiquement à la fin de la requête via l'événement post_system
+     * lorsque deferWrites est activé.
      */
-    private function saveDate(Collection $data): void
+    public function persistPendingProperties(): void
     {
-        $data = $data->toArray();
+        if ($this->pendingProperties === []) {
+            return;
+        }
 
-        file_put_contents($this->path, json_encode($data, JSON_PRETTY_PRINT));
+        // Grouper les propriétés en attente par fichier+contexte en utilisant l'helper parent
+        $grouped = $this->getPendingPropertiesGrouped();
+
+        // Persister chaque groupe fichier+contexte
+        foreach ($grouped as $group) {
+            try {
+                $this->persist($group['file'], $group['context'], $group['changes']);
+            } catch (RuntimeException $e) {
+                logger()->error('Échec de la persistance des propriétés en attente pour ' . $group['file'] . ' : ' . $e->getMessage());
+            }
+        }
+
+        $this->pendingProperties = [];
+    }
+
+    /**
+     * Génère un chemin de fichier pour une combinaison fichier+contexte donnée.
+     *
+     * Structure :
+     * - Contexte null : storage/app/parametres/nom_config.php
+     * - Avec contexte : storage/app/parametres/{hash(contexte)}/nom_config.php
+     *
+     * @return string Chemin complet du fichier
+     */
+    private function getFilePath(string $file, ?string $context): string
+    {
+        if ($context === null) {
+            return $this->path . $file . '.php';
+        }
+
+        $contextHash = hash('xxh128', $context);
+
+        return $this->path . $contextHash . DIRECTORY_SEPARATOR . $file . '.php';
+    }
+
+    /**
+     * Génère une clé d'hydratation pour une combinaison fichier+contexte.
+     * Format : $file lorsque le contexte est null, $file::$contexte sinon.
+     *
+     * @return string Clé d'hydratation
+     */
+    private function getHydrationKey(string $file, ?string $context): string
+    {
+        return $context === null ? $file : $file . '::' . $context;
     }
 }
