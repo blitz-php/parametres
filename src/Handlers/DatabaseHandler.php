@@ -13,10 +13,9 @@ namespace BlitzPHP\Parametres\Handlers;
 
 use BlitzPHP\Database\Builder\BaseBuilder;
 use BlitzPHP\Database\Connection\BaseConnection;
-use BlitzPHP\Database\ConnectionResolver;
-use BlitzPHP\Utilities\Date;
+use BlitzPHP\Database\Exceptions\DatabaseException;
+use BlitzPHP\Utilities\DateTime\Date;
 use RuntimeException;
-use stdClass;
 
 /**
  * Fournit une persistance de base de données pour les paramètres.
@@ -41,7 +40,7 @@ class DatabaseHandler extends ArrayHandler
      */
     private array $hydrated = [];
 
-    private stdClass $config;
+    private object $config;
 
     /**
      * @param array<string,mixed> $config
@@ -54,8 +53,10 @@ class DatabaseHandler extends ArrayHandler
 
         $this->config = (object) $config;
 
-        $this->db      = (new ConnectionResolver())->connect($this->config->group);
+        $this->db      = db($this->config->group);
         $this->builder = $this->db->table($this->config->table);
+
+        $this->setupDeferredWrites($this->config->defer_writes ?? false);
     }
 
     /**
@@ -86,6 +87,23 @@ class DatabaseHandler extends ArrayHandler
      * @throws RuntimeException En cas d'échec de la base de données
      */
     public function set(string $file, string $property, mixed $value = null, ?string $context = null): void
+    {
+        if ($this->deferWrites) {
+            $this->markPending($file, $property, $value, $context);
+        } else {
+            $this->persist($file, $property, $value, $context);
+        }
+
+        // Mise à jour du stockage après la vérification de la persistance
+        $this->setStored($file, $property, $value, $context);
+    }
+
+    /**
+     * Enregistre une seule propriété dans la base de données.
+     *
+     * @throws RuntimeException En cas d'échec de la base de données
+     */
+    private function persist(string $file, string $property, mixed $value, ?string $context): void
     {
         $time     = Date::now()->format('Y-m-d H:i:s');
         $type     = gettype($value);
@@ -123,9 +141,6 @@ class DatabaseHandler extends ArrayHandler
         if (! $result) {
             throw new RuntimeException($this->db->error()['message'] ?? 'Erreur d\'écriture dans la base de données.');
         }
-
-        // Mise à jour du stockage
-        $this->setStored($file, $property, $value, $context);
     }
 
     /**
@@ -135,8 +150,23 @@ class DatabaseHandler extends ArrayHandler
     {
         $this->hydrate($context);
 
-        // Supprimer de la base de données
+        if ($this->deferWrites) {
+            $this->markPending($file, $property, null, $context, true);
+        } else {
+            $this->persistForget($file, $property, $context);
+        }
 
+        // Supprimer de la mémoire locale
+        $this->forgetStored($file, $property, $context);
+    }
+
+    /**
+     * Supprime une seule propriété de la base de données.
+     *
+     * @throws RuntimeException En cas d'échec de la base de données
+     */
+    private function persistForget(string $file, string $property, ?string $context): void
+    {
         $builder = $this->builder()->where('file', $file)->where('key', $property);
 
         if (null === $context) {
@@ -145,14 +175,11 @@ class DatabaseHandler extends ArrayHandler
             $builder->where('context', $context);
         }
 
-        $result = $builder->delete();
-
-        if (! $result) {
-            throw new RuntimeException($this->db->error()['message'] ?? 'Erreur d\'écriture dans la base de données.');
+        try {
+            $builder->delete();
+        } catch (DatabaseException $e) {
+            throw new RuntimeException('Erreur d\'écriture dans la base de données: ' . $e->getMessage());
         }
-
-        // Supprimer de la mémoire locale
-        $this->forgetStored($file, $property, $context);
     }
 
     /**
@@ -196,6 +223,141 @@ class DatabaseHandler extends ArrayHandler
         foreach ($query->result('object') as $row) {
             $this->setStored($row->file, $row->key, $this->parseValue($row->value, $row->type), $row->context);
         }
+    }
+
+    /**
+     * Enregistre toutes les propriétés en attente dans la base de données.
+     * Appelé automatiquement à la fin de la requête via l'événement post_system lorsque l'option deferWrites est activée.
+     */
+    public function persistPendingProperties(): void
+    {
+        if ($this->pendingProperties === []) {
+            return;
+        }
+
+        $time = date('Y-m-d H:i:s');
+
+        // Distinguer les suppressions des mises à jour avec insertion et préparer les opérations sur la base de données
+        $deletes = [];
+        $upserts = [];
+
+        foreach ($this->pendingProperties as $info) {
+            if ($info['delete']) {
+                // Préparez la suppression de la ligne en indiquant les noms de colonnes corrects de la base de données
+                $deletes[] = [
+                    'file'    => $info['file'],
+                    'key'     => $info['property'],
+                    'context' => $info['context'],
+                ];
+            } else {
+                // Préparez la ligne d'insertion/mise à jour avec les noms de colonnes corrects de la base de données
+                $upserts[] = [
+                    'file'       => $info['file'],
+                    'key'        => $info['property'],
+                    'value'      => $this->prepareValue($info['value']),
+                    'type'       => gettype($info['value']),
+                    'context'    => $info['context'],
+                    'created_at' => $time,
+                    'updated_at' => $time,
+                ];
+            }
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            // Gérer les mises à jour avec insertion : récupérer les enregistrements existants correspondant à nos données en attente
+            if ($upserts !== []) {
+                // Construire une requête pour récupérer uniquement les enregistrements dont nous avons besoin
+                $builder = $this->buildOrWhereConditions($upserts, 'file', 'key', 'context');
+
+                $existing = $builder->clone()->result('array');
+
+                // Créez une carte des enregistrements existants pour faciliter la recherche
+                $existingMap = [];
+
+                foreach ($existing as $row) {
+                    $key               = $this->buildCompositeKey($row['file'], $row['key'], $row['context']);
+                    $existingMap[$key] = $row['id'];
+                }
+
+                // Distinguer les insertions des mises à jour
+                $inserts = [];
+                $updates = [];
+
+                foreach ($upserts as $row) {
+                    $key = $this->buildCompositeKey($row['file'], $row['key'], $row['context']);
+
+                    if (isset($existingMap[$key])) {
+                        // L'enregistrement existe - se préparer à la mise à jour
+                        $updates[] = [
+                            'id'         => $existingMap[$key],
+                            'value'      => $row['value'],
+                            'type'       => $row['type'],
+                            'updated_at' => $row['updated_at'],
+                        ];
+                    } else {
+                        // Nouvel enregistrement - préparation à l'insertion
+                        $inserts[] = $row;
+                    }
+                }
+
+                // Insérer de nouveaux enregistrements par lots
+                if ($inserts !== []) {
+                    $builder->bulkInsert($inserts);
+                }
+
+                // Mise à jour groupée des enregistrements existants
+                if ($updates !== []) {
+                    $builder->bulkUpdate($updates, 'id');
+                }
+            }
+
+            // Supprimer en bloc toutes les opérations de suppression
+            if ($deletes !== []) {
+                $builder = $this->buildOrWhereConditions($deletes, 'file', 'key', 'context');
+
+                $builder->delete();
+            }
+
+            $this->db->commit();
+
+            if ($this->db->transStatus() === false) {
+                logger()->error("Impossible d'enregistrer les propriétés en attente dans la base de données.");
+            }
+
+            $this->pendingProperties = [];
+        } catch (DatabaseException $e) {
+            logger()->error('Échec de la persistance des propriétés en attente : ' . $e->getMessage());
+
+            $this->pendingProperties = [];
+        }
+    }
+
+    /**
+     * Crée une clé composite à des fins de recherche.
+     */
+    private function buildCompositeKey(string $file, string $key, ?string $context): string
+    {
+        return $file . '::' . $key . ($context === null ? '' : '::' . $context);
+    }
+
+    /**
+     * Crée des conditions OR WHERE pour plusieurs lignes.
+     */
+    private function buildOrWhereConditions(array $rows, string $fileKey, string $keyKey, string $contextKey): BaseBuilder
+    {
+        $builder = $this->builder();
+
+        foreach ($rows as $row) {
+            $builder->orWhere(function ($q) use ($row, $fileKey, $keyKey, $contextKey) {
+                $q->where($fileKey, $row[$fileKey])
+                    ->where($keyKey, $row[$keyKey])
+                    ->where($contextKey, $row[$contextKey]);
+            });
+        }
+
+        return $builder;
     }
 
     private function builder(): BaseBuilder

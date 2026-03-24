@@ -11,14 +11,14 @@
 
 use BlitzPHP\Parametres\Exceptions\ParametresException;
 use BlitzPHP\Parametres\Parametres;
-use BlitzPHP\Utilities\Date;
+use BlitzPHP\Utilities\DateTime\Date;
 use BlitzPHP\Utilities\Iterable\Arr;
 
 use function Kahlan\expect;
 
-describe('Parametres / FileHandler', function () {
+describe('Parametres / JsonHandler', function () {
     beforeAll(function () {
-        config()->set('parametres.file.path', $path = storage_path('.parametres.json'));
+        config()->set('parametres.json.file', $path = storage_path('.parametres.json'));
         $this->path = $path;
 
         $this->seeInFile = function (array $where) {
@@ -57,7 +57,7 @@ describe('Parametres / FileHandler', function () {
 
     beforeEach(function () {
         $config             = config('parametres');
-        $config['handlers'] = ['file'];
+        $config['handlers'] = ['json'];
 
         $this->parametres = new Parametres($config);
     });
@@ -68,16 +68,16 @@ describe('Parametres / FileHandler', function () {
 
     it('Lève une exception si le chemin d\'accès du fichier de stockage n\'est pas specifié', function () {
         $config                 = config('parametres');
-        $config['handlers']     = ['file'];
-        $config['file']['path'] = '';
+        $config['handlers']     = ['json'];
+        $config['json']['file'] = '';
 
         expect(fn () => new Parametres($config))->toThrow(ParametresException::fileForStorageNotDefined());
     });
 
     it('Lève une exception si le dossier du fichier de stockage n\'existe pas', function () {
         $config                 = config('parametres');
-        $config['handlers']     = ['file'];
-        $config['file']['path'] = $path = __DIR__ . '/app/parametres.json';
+        $config['handlers']     = ['json'];
+        $config['json']['file'] = $path = __DIR__ . '/app/parametres.json';
 
         expect(fn () => new Parametres($config))->toThrow(ParametresException::directoryOfFileNotFound($path));
     });

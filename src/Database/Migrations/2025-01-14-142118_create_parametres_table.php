@@ -13,18 +13,35 @@ declare(strict_types=1);
 
 namespace BlitzPHP\Parametres\Database\Migrations;
 
+use BlitzPHP\Database\Migration\Builder;
 use BlitzPHP\Database\Migration\Migration;
-use BlitzPHP\Database\Migration\Structure;
 use stdClass;
 
 class CreateParametresTable extends Migration
 {
     private stdClass $config;
+    private string $group;
 
     public function __construct()
     {
         $this->config = (object) config('parametres');
-        $this->group  = $this->config->database['group'] ?? 'default';
+        $this->group  = $this->config->database['group'] ?? config('database.connection', 'default');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function shouldRun(): bool
+    {
+        $handlers = [];
+
+        foreach ($this->config->handlers as $handler) {
+            if (isset($this->config->{$handler}['writeable']) && $this->config->{$handler}['writeable'] === true) {
+                $handlers[] = $handler;
+            }
+        }
+
+        return in_array('database', $handlers, true);
     }
 
     /**
@@ -32,7 +49,7 @@ class CreateParametresTable extends Migration
      */
     public function up(): void
     {
-        $this->create($this->config->database['table'], static function (Structure $table) {
+        $this->connection($this->group)->create($this->config->database['table'], static function (Builder $table) {
             $table->id();
             $table->string('file');
             $table->string('key');
@@ -50,6 +67,6 @@ class CreateParametresTable extends Migration
      */
     public function down(): void
     {
-        $this->dropIfExists($this->config->database['table']);
+        $this->connection($this->group)->dropIfExists($this->config->database['table']);
     }
 }

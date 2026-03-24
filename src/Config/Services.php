@@ -23,10 +23,10 @@ class Services extends BaseService
      */
     public static function parametres(?array $config = null, bool $shared = true): Parametres
     {
-        if (true === $shared && isset(static::$instances[Parametres::class])) {
-            return static::$instances[Parametres::class];
+        if ($shared) {
+            return static::sharedInstance('parametres', $config);
         }
 
-        return static::$instances[Parametres::class] = new Parametres($config ?? config('parametres'));
+        return new Parametres($config ?? config('parametres'));
     }
 }

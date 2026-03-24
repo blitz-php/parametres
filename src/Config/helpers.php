@@ -15,11 +15,10 @@ if (! function_exists('parametre')) {
     /**
      * Fournit une interface pratique au service Paramètres.
      *
-     * @phpstan-return ($key is null ? Parametres : ($value is null ? array<mixed>|bool|float|int|object|string|null : void))
-     *
      * @param mixed|null $value
      *
-     * @return bool|float|int|list<mixed>|object|Parametres|string|void|null
+     * @return         bool|float|int|list<mixed>|object|Parametres|string|void|null
+     * @phpstan-return ($key is null ? Parametres : ($value is null ? array<mixed>|bool|float|int|object|string|null : void))
      */
     function parametre(?string $key = null, $value = null)
     {

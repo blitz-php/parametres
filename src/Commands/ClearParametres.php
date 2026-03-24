@@ -18,22 +18,22 @@ class ClearParametres extends Command
     /**
      * {@inheritDoc}
      */
-    protected $group = 'Housekeeping';
+    protected string $group = 'Housekeeping';
 
     /**
      * {@inheritDoc}
      */
-    protected $name = 'parametres:clear';
+    protected string $name = 'parametres:clear';
 
     /**
      * {@inheritDoc}
      */
-    protected $description = 'Efface tous les paramètres de la base de données.';
+    protected string $description = 'Efface tous les paramètres de la base de données.';
 
     /**
      * {@inheritDoc}
      */
-    protected $options = [
+    protected array $options = [
         '--yes|-y' => 'Lance la suppression des paramètres sans demander une confirmation.',
     ];
 
@@ -42,14 +42,53 @@ class ClearParametres extends Command
      *
      * @return void
      */
-    public function execute(array $params)
+    public function handle()
     {
-        if (! ($this->option('yes') || $this->confirm('Cette opération supprimera tous les paramètres de la base de données. Êtes-vous sûr de vouloir continuer ?', 'n'))) {
+        $handlers = $this->getHandlers(config('parametres'));
+
+        if ($handlers === []) {
+            $this->write("Aucun gestionnaire n'est disponible pour la suppression dans le fichier de configuration.", true);
+
+            return;
+        }
+
+        if (! ($this->option('yes') || $this->confirm('Cette opération supprimera tous les paramètres de "' . $handlers . '". Êtes-vous sûr de vouloir continuer ?', 'n'))) {
             return;
         }
 
         service('parametres')->flush();
 
-        $this->writer->ok('Paramètres effacés de la base de données.');
+        $single = count($handlers) === 1;
+
+        $this->writer->ok(
+            sprintf(
+                'Paramètres effacés %s gestionnaire%s %s',
+                $single ? 'du' : 'des',
+                $single ? '' : 's',
+                $single ? '"' . $handlers[0] . '"' : implode(', ', $handlers),
+            ),
+            true,
+        );
+    }
+
+    /**
+     * Renvoie une liste des gestionnaires.
+     */
+    private function getHandlers(array $config): array
+    {
+        if ($config['handlers'] === []) {
+            return [];
+        }
+
+        $handlers = [];
+
+        foreach ($config['handlers'] as $handler) {
+            // Afficher uniquement les gestionnaires accessibles en écriture (ceux qui peuvent être vidés)
+            if (isset($config[$handler]['writeable']) && $config[$handler]['writeable'] === true) {
+                $handlers[] = $handler;
+            }
+        }
+
+        return $handlers;
     }
 }

@@ -36,6 +36,21 @@ class ArrayHandler extends BaseHandler
     private array $contexts = [];
 
     /**
+     * Déterminer s'il faut différer les écritures jusqu'à la fin de la requête.
+     * Utilisé par les gestionnaires prenant en charge les écritures différées.
+     */
+    protected bool $deferWrites = false;
+
+    /**
+     * Tableau des propriétés qui ont été modifiées mais qui n'ont pas été enregistrées.
+     * Utilisé par les gestionnaires prenant en charge les écritures différées.
+     * Format: ['key' => ['file' => ..., 'property' => ..., 'value' => ..., 'context' => ..., 'delete' => ...]]
+     *
+     * @var array<string, array{file: string, property: string, value: mixed, context: string|null, delete: bool}>
+     */
+    protected array $pendingProperties = [];
+
+    /**
      * {@inheritDoc}
      */
     public function has(string $file, string $property, ?string $context = null): bool
@@ -134,6 +149,64 @@ class ArrayHandler extends BaseHandler
             unset($this->general[$file][$property]);
         } else {
             unset($this->contexts[$context][$file][$property]);
+        }
+    }
+
+    /**
+     * Marque une propriété comme étant en attente (doit être enregistrée).
+     * Utilisé par les gestionnaires prenant en charge les écritures différées.
+     */
+    protected function markPending(string $file, string $property, mixed $value, ?string $context, bool $isDelete = false): void
+    {
+        $key                           = $file . '::' . $property . ($context === null ? '' : '::' . $context);
+        $this->pendingProperties[$key] = [
+            'file'     => $file,
+            'property' => $property,
+            'value'    => $value,
+            'context'  => $context,
+            'delete'   => $isDelete,
+        ];
+    }
+
+    /**
+     * Regroupe les propriétés en attente selon la combinaison classe+contexte.
+     * Utile pour les gestionnaires qui doivent enregistrer les modifications au niveau de chaque classe.
+     * Format: ['key' => ['file' => ..., 'context' => ..., 'changes' => [...]]]
+     *
+     * @return array<string, array{file: string, context: string|null, changes: list<array{file: string, property: string, value: mixed, context: string|null, delete: bool}>}>
+     */
+    protected function getPendingPropertiesGrouped(): array
+    {
+        $grouped = [];
+
+        foreach ($this->pendingProperties as $info) {
+            $key = $info['file'] . ($info['context'] === null ? '' : '::' . $info['context']);
+
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'file'    => $info['file'],
+                    'context' => $info['context'],
+                    'changes' => [],
+                ];
+            }
+
+            $grouped[$key]['changes'][] = $info;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Configure les écritures différées pour les gestionnaires qui les prennent en charge.
+     *
+     * @param bool $enabled Indique si les écritures différées doivent être activées
+     */
+    protected function setupDeferredWrites(bool $enabled): void
+    {
+        $this->deferWrites = $enabled;
+
+        if ($this->deferWrites) {
+            service('event')->on('post_system', $this->persistPendingProperties(...));
         }
     }
 }

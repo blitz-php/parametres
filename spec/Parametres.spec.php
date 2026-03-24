@@ -34,7 +34,7 @@ describe('Parametres / Parametres', function () {
     });
 
     it('Utilisation du service', function () {
-        Services::resetSingle(Parametres::class);
+        Services::resetSingle('parametres');
 
         config()->set('parametres.handlers', []);
 
