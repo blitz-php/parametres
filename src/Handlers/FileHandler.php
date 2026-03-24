@@ -255,60 +255,39 @@ class FileHandler extends ArrayHandler
             throw new RuntimeException('Impossible de créer le répertoire : ' . $directory);
         }
 
-        // Ouvrir/créer le fichier pour le verrouillage
-        $lockHandle = fopen($filePath, 'c+b');
+		$currentData = [];
+		if (file_exists($filePath)) {
+			$currentData = include $filePath;
 
-        if ($lockHandle === false) {
-            throw new RuntimeException('Impossible d\'ouvrir le fichier pour le verrouillage : ' . $filePath);
-        }
+			if (! is_array($currentData)) {
+				$currentData = [];
+			}
+		}
 
-        try {
-            // Acquérir un verrou exclusif
-            if (! flock($lockHandle, LOCK_EX)) {
-                throw new RuntimeException('Impossible d\'acquérir le verrou sur le fichier : ' . $filePath);
-            }
+		// Appliquer tous les changements en attente
+		foreach ($changes as $change) {
+			if ($change['delete']) {
+				// Supprimer explicitement cette propriété
+				unset($currentData[$change['property']]);
+			} else {
+				// Définir ou mettre à jour cette propriété
+				$currentData[$change['property']] = [
+					'value' => $change['value'],
+					'type'  => gettype($change['value']),
+				];
+			}
+		}
 
-            // Vider le cache de statut du fichier pour obtenir la taille actuelle
-            clearstatcache(true, $filePath);
+		// Générer le contenu du fichier PHP
+		$content = '<?php' . PHP_EOL . PHP_EOL;
+		$content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
 
-            $currentData = [];
+		// Écrire le fichier
+		if (file_put_contents($filePath, $content, LOCK_EX) === false) {
+			throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
+		}
 
-            if (filesize($filePath) > 0) {
-                $currentData = include $filePath;
-
-                if (! is_array($currentData)) {
-                    $currentData = [];
-                }
-            }
-
-            // Appliquer tous les changements en attente
-            foreach ($changes as $change) {
-                if ($change['delete']) {
-                    // Supprimer explicitement cette propriété
-                    unset($currentData[$change['property']]);
-                } else {
-                    // Définir ou mettre à jour cette propriété
-                    $currentData[$change['property']] = [
-                        'value' => $change['value'],
-                        'type'  => gettype($change['value']),
-                    ];
-                }
-            }
-
-            // Générer le contenu du fichier PHP
-            $content = '<?php' . PHP_EOL . PHP_EOL;
-            $content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
-
-            // Écrire le fichier
-            if (file_put_contents($filePath, $content) === false) {
-                throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
-            }
-
-            @chmod($filePath, 0644);
-        } finally {
-            flock($lockHandle, LOCK_UN);
-            fclose($lockHandle);
-        }
+		@chmod($filePath, 0644);
     }
 
     /**

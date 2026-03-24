@@ -55,6 +55,8 @@ class DatabaseHandler extends ArrayHandler
 
         $this->db      = db($this->config->group);
         $this->builder = $this->db->table($this->config->table);
+
+        $this->setupDeferredWrites($this->config->defer_writes ?? false);
     }
 
     /**
@@ -173,10 +175,10 @@ class DatabaseHandler extends ArrayHandler
             $builder->where('context', $context);
         }
 
-        $result = $builder->delete() > 0;
-
-        if (! $result) {
-            throw new RuntimeException($this->db->error()['message'] ?? 'Erreur d\'écriture dans la base de données.');
+		try {
+			$builder->delete();
+		} catch (DatabaseException $e) {
+            throw new RuntimeException('Erreur d\'écriture dans la base de données: ' . $e->getMessage());
         }
     }
 
@@ -233,7 +235,7 @@ class DatabaseHandler extends ArrayHandler
             return;
         }
 
-        $time = Date::now()->format('Y-m-d H:i:s');
+        $time = date('Y-m-d H:i:s');
 
         // Distinguer les suppressions des mises à jour avec insertion et préparer les opérations sur la base de données
         $deletes = [];
@@ -269,7 +271,7 @@ class DatabaseHandler extends ArrayHandler
                 // Construire une requête pour récupérer uniquement les enregistrements dont nous avons besoin
                 $builder = $this->buildOrWhereConditions($upserts, 'file', 'key', 'context');
 
-                $existing = $builder->result('array');
+                $existing = $builder->clone()->result('array');
 
                 // Créez une carte des enregistrements existants pour faciliter la recherche
                 $existingMap = [];

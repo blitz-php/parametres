@@ -273,7 +273,7 @@ class JsonHandler extends ArrayHandler
      *
      * @param array{file: string, property: string, value: mixed, context: string|null, delete: bool} $change
      */
-    private function applyChange(Collection $data, array $change): void
+    private function applyChange(Collection &$data, array $change): void
     {
         $time = date('Y-m-d H:i:s');
 

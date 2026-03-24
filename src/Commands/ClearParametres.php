@@ -47,7 +47,7 @@ class ClearParametres extends Command
         $handlers = $this->getHandlers(config('parametres'));
 
         if ($handlers === []) {
-            $this->write("Aucun gestionnaire n'est disponible pour la suppression dans le fichier de configuration.");
+            $this->write("Aucun gestionnaire n'est disponible pour la suppression dans le fichier de configuration.", true);
 
             return;
         }
@@ -66,7 +66,8 @@ class ClearParametres extends Command
 				$single ? 'du' : 'des',
 				$single ? '' : 's',
 				$single ? '"' . $handlers[0] . '"' : implode(', ', $handlers)
-			)
+			),
+			true
 		);
     }
 
