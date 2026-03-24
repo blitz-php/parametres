@@ -37,7 +37,7 @@ describe('Parametres / FileHandler', function () {
                     return false;
                 }
 
-                if ($data[$property]['value'] != $expectedValue) {
+                if ($data[$property]['value'] !== $expectedValue) {
                     return false;
                 }
             }
