@@ -203,12 +203,12 @@ class JsonHandler extends ArrayHandler
 
         if ($context === null) {
             $this->hydrated[] = null;
-            $items = $data->whereNull('context');
+            $items            = $data->whereNull('context');
         } else {
             // Si le général n'a pas été hydraté, on l'hydrate donc.
             if (! in_array(null, $this->hydrated, true)) {
                 $this->hydrated[] = null;
-                $items = $data->whereNull('context')->merge($data->where('context', $context));
+                $items            = $data->whereNull('context')->merge($data->where('context', $context));
             } else {
                 $items = $data->where('context', $context);
             }
@@ -221,7 +221,7 @@ class JsonHandler extends ArrayHandler
                 $row['file'],
                 $row['key'],
                 $this->parseValue($row['value'], $row['type']),
-                $row['context']
+                $row['context'],
             );
         }
     }
@@ -230,7 +230,7 @@ class JsonHandler extends ArrayHandler
      * Persiste les changements de propriétés spécifiques dans le fichier JSON.
      * Utilisé à la fois pour les écritures immédiates et différées.
      *
-     * @param array<array{file: string, property: string, value: mixed, context: string|null, delete: bool}> $changes
+     * @param list<array{file: string, property: string, value: mixed, context: string|null, delete: bool}> $changes
      *
      * @throws RuntimeException En cas d'échec d'écriture
      */
@@ -279,18 +279,16 @@ class JsonHandler extends ArrayHandler
 
         if ($change['delete']) {
             // Supprimer l'enregistrement correspondant
-            $data = $data->reject(function ($item) use ($change) {
-                return $item['file'] === $change['file']
+            $data = $data->reject(fn ($item) => $item['file'] === $change['file']
                     && $item['key'] === $change['property']
-                    && $item['context'] === $change['context'];
-            });
+                    && $item['context'] === $change['context']);
         } else {
-            $type = gettype($change['value']);
+            $type     = gettype($change['value']);
             $prepared = $this->prepareValue($change['value']);
 
             // Chercher si l'enregistrement existe déjà
             $existingIndex = null;
-            $existing = $data->first(function ($item, $index) use ($change, &$existingIndex) {
+            $existing      = $data->first(function ($item, $index) use ($change, &$existingIndex) {
                 $exists = $item['file'] === $change['file']
                     && $item['key'] === $change['property']
                     && $item['context'] === $change['context'];
@@ -304,7 +302,7 @@ class JsonHandler extends ArrayHandler
 
             if ($existing) {
                 // Mettre à jour l'enregistrement existant
-                $data = $data->map(function ($item, $index) use ($existingIndex, $prepared, $type, $change, $time) {
+                $data = $data->map(function ($item, $index) use ($existingIndex, $prepared, $type, $time) {
                     if ($index !== $existingIndex) {
                         return $item;
                     }
@@ -341,6 +339,7 @@ class JsonHandler extends ArrayHandler
         // Lire le contenu du fichier
         $content = '';
         rewind($handle);
+
         while (! feof($handle)) {
             $content .= fread($handle, 8192);
         }

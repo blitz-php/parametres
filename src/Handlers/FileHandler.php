@@ -255,39 +255,39 @@ class FileHandler extends ArrayHandler
             throw new RuntimeException('Impossible de créer le répertoire : ' . $directory);
         }
 
-		$currentData = [];
-		if (file_exists($filePath)) {
-			$currentData = include $filePath;
+        $currentData = [];
+        if (file_exists($filePath)) {
+            $currentData = include $filePath;
 
-			if (! is_array($currentData)) {
-				$currentData = [];
-			}
-		}
+            if (! is_array($currentData)) {
+                $currentData = [];
+            }
+        }
 
-		// Appliquer tous les changements en attente
-		foreach ($changes as $change) {
-			if ($change['delete']) {
-				// Supprimer explicitement cette propriété
-				unset($currentData[$change['property']]);
-			} else {
-				// Définir ou mettre à jour cette propriété
-				$currentData[$change['property']] = [
-					'value' => $change['value'],
-					'type'  => gettype($change['value']),
-				];
-			}
-		}
+        // Appliquer tous les changements en attente
+        foreach ($changes as $change) {
+            if ($change['delete']) {
+                // Supprimer explicitement cette propriété
+                unset($currentData[$change['property']]);
+            } else {
+                // Définir ou mettre à jour cette propriété
+                $currentData[$change['property']] = [
+                    'value' => $change['value'],
+                    'type'  => gettype($change['value']),
+                ];
+            }
+        }
 
-		// Générer le contenu du fichier PHP
-		$content = '<?php' . PHP_EOL . PHP_EOL;
-		$content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
+        // Générer le contenu du fichier PHP
+        $content = '<?php' . PHP_EOL . PHP_EOL;
+        $content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
 
-		// Écrire le fichier
-		if (file_put_contents($filePath, $content, LOCK_EX) === false) {
-			throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
-		}
+        // Écrire le fichier
+        if (file_put_contents($filePath, $content, LOCK_EX) === false) {
+            throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
+        }
 
-		@chmod($filePath, 0644);
+        @chmod($filePath, 0644);
     }
 
     /**

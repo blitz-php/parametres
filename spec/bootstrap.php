@@ -30,7 +30,7 @@ define('STORAGE_PATH', APP_PATH);
 define('SYST_PATH', VENDOR_PATH . 'blitz-php/framework/src/');
 
 require_once $autoload_file;
-require_once SYST_PATH . 'Initializer' . DIRECTORY_SEPARATOR. 'Boot.php';
+require_once SYST_PATH . 'Initializer' . DIRECTORY_SEPARATOR . 'Boot.php';
 
 require_once SYST_PATH . 'Helpers/path.php';
 

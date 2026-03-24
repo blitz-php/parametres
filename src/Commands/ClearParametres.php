@@ -52,23 +52,23 @@ class ClearParametres extends Command
             return;
         }
 
-
         if (! ($this->option('yes') || $this->confirm('Cette opération supprimera tous les paramètres de "' . $handlers . '". Êtes-vous sûr de vouloir continuer ?', 'n'))) {
             return;
         }
 
         service('parametres')->flush();
 
-		$single = count($handlers) === 1;
+        $single = count($handlers) === 1;
 
         $this->writer->ok(
-			sprintf('Paramètres effacés %s gestionnaire%s %s',
-				$single ? 'du' : 'des',
-				$single ? '' : 's',
-				$single ? '"' . $handlers[0] . '"' : implode(', ', $handlers)
-			),
-			true
-		);
+            sprintf(
+                'Paramètres effacés %s gestionnaire%s %s',
+                $single ? 'du' : 'des',
+                $single ? '' : 's',
+                $single ? '"' . $handlers[0] . '"' : implode(', ', $handlers),
+            ),
+            true,
+        );
     }
 
     /**
@@ -89,6 +89,6 @@ class ClearParametres extends Command
             }
         }
 
-		return $handlers;
+        return $handlers;
     }
 }

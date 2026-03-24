@@ -88,7 +88,7 @@ class DatabaseHandler extends ArrayHandler
      */
     public function set(string $file, string $property, mixed $value = null, ?string $context = null): void
     {
-		if ($this->deferWrites) {
+        if ($this->deferWrites) {
             $this->markPending($file, $property, $value, $context);
         } else {
             $this->persist($file, $property, $value, $context);
@@ -148,7 +148,7 @@ class DatabaseHandler extends ArrayHandler
      */
     public function forget(string $file, string $property, ?string $context = null): void
     {
-		$this->hydrate($context);
+        $this->hydrate($context);
 
         if ($this->deferWrites) {
             $this->markPending($file, $property, null, $context, true);
@@ -167,7 +167,7 @@ class DatabaseHandler extends ArrayHandler
      */
     private function persistForget(string $file, string $property, ?string $context): void
     {
-		$builder = $this->builder()->where('file', $file)->where('key', $property);
+        $builder = $this->builder()->where('file', $file)->where('key', $property);
 
         if (null === $context) {
             $builder->whereNull('context');
@@ -175,9 +175,9 @@ class DatabaseHandler extends ArrayHandler
             $builder->where('context', $context);
         }
 
-		try {
-			$builder->delete();
-		} catch (DatabaseException $e) {
+        try {
+            $builder->delete();
+        } catch (DatabaseException $e) {
             throw new RuntimeException('Erreur d\'écriture dans la base de données: ' . $e->getMessage());
         }
     }
@@ -225,7 +225,7 @@ class DatabaseHandler extends ArrayHandler
         }
     }
 
-	/**
+    /**
      * Enregistre toutes les propriétés en attente dans la base de données.
      * Appelé automatiquement à la fin de la requête via l'événement post_system lorsque l'option deferWrites est activée.
      */
@@ -347,17 +347,17 @@ class DatabaseHandler extends ArrayHandler
      */
     private function buildOrWhereConditions(array $rows, string $fileKey, string $keyKey, string $contextKey): BaseBuilder
     {
-		$builder = $this->builder();
+        $builder = $this->builder();
 
         foreach ($rows as $row) {
-            $builder->orWhere(function($q) use ($row, $fileKey, $keyKey, $contextKey) {
+            $builder->orWhere(function ($q) use ($row, $fileKey, $keyKey, $contextKey) {
                 $q->where($fileKey, $row[$fileKey])
-                	->where($keyKey, $row[$keyKey])
-                	->where($contextKey, $row[$contextKey]);
-			});
+                    ->where($keyKey, $row[$keyKey])
+                    ->where($contextKey, $row[$contextKey]);
+            });
         }
 
-		return $builder;
+        return $builder;
     }
 
     private function builder(): BaseBuilder

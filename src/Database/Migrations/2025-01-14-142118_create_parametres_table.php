@@ -20,8 +20,7 @@ use stdClass;
 class CreateParametresTable extends Migration
 {
     private stdClass $config;
-
-	private string $group;
+    private string $group;
 
     public function __construct()
     {
@@ -29,12 +28,12 @@ class CreateParametresTable extends Migration
         $this->group  = $this->config->database['group'] ?? config('database.connection', 'default');
     }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function shouldRun(): bool
+    /**
+     * {@inheritDoc}
+     */
+    public function shouldRun(): bool
     {
-		$handlers = [];
+        $handlers = [];
 
         foreach ($this->config->handlers as $handler) {
             if (isset($this->config->{$handler}['writeable']) && $this->config->{$handler}['writeable'] === true) {
@@ -42,7 +41,7 @@ class CreateParametresTable extends Migration
             }
         }
 
-        return in_array('database', $handlers);
+        return in_array('database', $handlers, true);
     }
 
     /**

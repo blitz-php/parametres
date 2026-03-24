@@ -206,7 +206,7 @@ class ArrayHandler extends BaseHandler
         $this->deferWrites = $enabled;
 
         if ($this->deferWrites) {
-			service('event')->on('post_system', $this->persistPendingProperties(...));
+            service('event')->on('post_system', $this->persistPendingProperties(...));
         }
     }
 }

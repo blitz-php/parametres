@@ -19,7 +19,7 @@ describe('Parametres / DatabaseHandler', function () {
     beforeAll(function () {
         @unlink(STORAGE_PATH . 'database.sqlite');
 
-		config()->set('parametres.handlers', ['database']);
+        config()->set('parametres.handlers', ['database']);
 
         config()->ghost('migrations')->set('migrations', [
             'enabled'         => true,
@@ -327,26 +327,26 @@ describe('Parametres / DatabaseHandler', function () {
         ]))->toBeTruthy();
     });
 
-	xdescribe('Écritures différées', function () {
+    xdescribe('Écritures différées', function () {
         beforeEach(function () {
             // Nettoyer la table avant chaque test
             $this->db->table($this->table)->truncate();
 
-            $config = config('parametres');
-            $config['handlers'] = ['database'];
+            $config                             = config('parametres');
+            $config['handlers']                 = ['database'];
             $config['database']['defer_writes'] = true;
 
             $this->parametres = new Parametres($config);
         });
 
         it('Ne persiste pas immédiatement les données en base', function () {
-			$this->parametres->set('test.site_name', 'Foo');
+            $this->parametres->set('test.site_name', 'Foo');
 
             // La donnée ne devrait pas être en base immédiatement
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-				'value' => 'Foo',
-                'key' => 'site_name'
+                'file'  => 'test',
+                'value' => 'Foo',
+                'key'   => 'site_name',
             ]))->toBeFalsy();
 
             // Mais devrait être accessible en mémoire
@@ -361,15 +361,15 @@ describe('Parametres / DatabaseHandler', function () {
             $handler->persistPendingProperties();
 
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_name',
-                'value' => 'Foo'
+                'file'  => 'test',
+                'key'   => 'site_name',
+                'value' => 'Foo',
             ]))->toBeTruthy();
 
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_lang',
-                'value' => 'fr'
+                'file'  => 'test',
+                'key'   => 'site_lang',
+                'value' => 'fr',
             ]))->toBeTruthy();
         });
 
@@ -398,9 +398,9 @@ describe('Parametres / DatabaseHandler', function () {
 
             // Vérifier que l'entrée a été mise à jour et qu'il n'y en a qu'une
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_name',
-                'value' => 'Bar'
+                'file'  => 'test',
+                'key'   => 'site_name',
+                'value' => 'Bar',
             ]))->toBeTruthy();
 
             $count = $this->db->table($this->table)->where('file', 'test')->where('key', 'site_name')->count();
@@ -417,14 +417,14 @@ describe('Parametres / DatabaseHandler', function () {
 
             // Seule la dernière valeur de site_name devrait être persistée
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_name',
-                'value' => 'Bar'
+                'file'  => 'test',
+                'key'   => 'site_name',
+                'value' => 'Bar',
             ]))->toBeTruthy();
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_lang',
-                'value' => 'en'
+                'file'  => 'test',
+                'key'   => 'site_lang',
+                'value' => 'en',
             ]))->toBeTruthy();
 
             $count = $this->db->table($this->table)->where('file', 'test')->count();
@@ -441,18 +441,18 @@ describe('Parametres / DatabaseHandler', function () {
             // Modifier et supprimer
             $this->parametres->set('test.site_name', 'Bar');
             $this->parametres->forget('test.site_lang');
-			$handler = $this->getDatabaseHandler();
+            $handler = $this->getDatabaseHandler();
             $handler->persistPendingProperties();
 
             // Vérifier le résultat final
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_name',
-                'value' => 'Bar'
+                'file'  => 'test',
+                'key'   => 'site_name',
+                'value' => 'Bar',
             ]))->toBeTruthy();
             expect($this->seeInDatabase($this->table, [
                 'file' => 'test',
-                'key' => 'site_lang'
+                'key'  => 'site_lang',
             ]))->toBeFalsy();
 
             $count = $this->db->table($this->table)->where('file', 'test')->count();
@@ -468,24 +468,24 @@ describe('Parametres / DatabaseHandler', function () {
             $handler->persistPendingProperties();
 
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_name',
-                'value' => 'General',
-                'context' => null
+                'file'    => 'test',
+                'key'     => 'site_name',
+                'value'   => 'General',
+                'context' => null,
             ]))->toBeTruthy();
 
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_name',
-                'value' => 'Specific',
-                'context' => 'context:test'
+                'file'    => 'test',
+                'key'     => 'site_name',
+                'value'   => 'Specific',
+                'context' => 'context:test',
             ]))->toBeTruthy();
 
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test',
-                'key' => 'site_lang',
-                'value' => 'fr',
-                'context' => 'context:test'
+                'file'    => 'test',
+                'key'     => 'site_lang',
+                'value'   => 'fr',
+                'context' => 'context:test',
             ]))->toBeTruthy();
         });
 
@@ -507,7 +507,7 @@ describe('Parametres / DatabaseHandler', function () {
             // Vérifier que les données ne sont pas persistées
             expect($this->seeInDatabase($this->table, [
                 'file' => 'test',
-                'key' => 'site_name'
+                'key'  => 'site_name',
             ]))->toBeFalsy();
         });
 
@@ -526,7 +526,7 @@ describe('Parametres / DatabaseHandler', function () {
 
             expect($this->seeInDatabase($this->table, [
                 'file' => 'test',
-                'key' => 'site_name'
+                'key'  => 'site_name',
             ]))->toBeFalsy();
         });
 
@@ -547,19 +547,20 @@ describe('Parametres / DatabaseHandler', function () {
 
             // Vérifier que les deux entrées ont été supprimées
             expect($this->seeInDatabase($this->table, [
-                'file' => 'test'
+                'file' => 'test',
             ]))->toBeFalsy();
 
             // L'entrée app.name doit toujours exister
             expect($this->seeInDatabase($this->table, [
                 'file' => 'app',
-                'key' => 'name'
+                'key'  => 'name',
             ]))->toBeTruthy();
         });
 
         // Helper pour récupérer le handler DatabaseHandler
         $this->getDatabaseHandler = function () {
             $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+
             return $handlers['database'] ?? null;
         };
     });

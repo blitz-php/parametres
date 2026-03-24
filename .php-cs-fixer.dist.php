@@ -42,5 +42,5 @@ return Factory::create(new Blitz(), $overrides, $options)->forLibrary(
     'BlitzPHP Parametres',
     'Dimitri Sitchet Tomkeu',
     'devcode.dst@gmail.com',
-    2025
+    2025,
 );
