@@ -59,7 +59,7 @@ class Parametres
     /**
      * Récupère une valeur de n'importe quel gestionnaire ou d'un fichier de configuration correspondant au nom file.arg.optionalArg
      */
-    public function get(string $key, ?string $context = null): mixed
+    public function get(string $key, ?string $context = null, mixed $default = null): mixed
     {
         [$file, $property, $config, $dotProperty] = $this->prepareFileAndProperty($key);
 
@@ -67,7 +67,7 @@ class Parametres
         foreach ($this->handlers as $handler) {
             if ($handler->has($file, $property, $context)) {
                 if (is_array($data = $handler->get($file, $property, $context)) && $property !== $dotProperty) {
-                    return Arr::getRecursive($data, str_replace($property . '.', '', $dotProperty));
+                    return Arr::get($data, str_replace($property . '.', '', $dotProperty), $default);
                 }
 
                 return $data;
@@ -76,10 +76,10 @@ class Parametres
 
         // Si aucune valeur contextuelle n'a été trouvée, on revient à la valeur générale.
         if ($context !== null) {
-            return $this->get($key);
+            return $this->get($key, null, $default);
         }
 
-        return Arr::getRecursive($config, $dotProperty);
+        return Arr::get($config, $dotProperty, $default);
     }
 
     /**
@@ -87,10 +87,10 @@ class Parametres
      */
     public function set(string $key, mixed $value = null, ?string $context = null): void
     {
-        [$file, $property] = $this->prepareFileAndProperty($key);
+        [$file, , , $dotProperty] = $this->prepareFileAndProperty($key);
 
         foreach ($this->getWriteHandlers() as $handler) {
-            $handler->set($file, $property, $value, $context);
+            $handler->set($file, $dotProperty, $value, $context);
         }
     }
 
@@ -100,10 +100,10 @@ class Parametres
      */
     public function forget(string $key, ?string $context = null): void
     {
-        [$file, $property] = $this->prepareFileAndProperty($key);
+        [$file, , $dotProperty] = $this->prepareFileAndProperty($key);
 
         foreach ($this->getWriteHandlers() as $handler) {
-            $handler->forget($file, $property, $context);
+            $handler->forget($file, $dotProperty, $context);
         }
     }
 
