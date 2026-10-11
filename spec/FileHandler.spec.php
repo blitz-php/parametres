@@ -382,7 +382,7 @@ describe('Parametres / FileHandler', function () {
     describe('setMany', function () {
         it('Insère plusieurs données dans le même fichier', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
                 'test.site_title' => 'BatchTitle',
             ]);
@@ -412,7 +412,7 @@ describe('Parametres / FileHandler', function () {
 
         it('Insère plusieurs données avec le contexte', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'ContextName',
+                'test.site_name'  => 'ContextName',
                 'test.site_email' => 'context@example.com',
             ], 'environment:production');
 
@@ -433,7 +433,7 @@ describe('Parametres / FileHandler', function () {
     describe('forgetMany', function () {
         it('Supprime plusieurs données dans le même fichier', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
                 'test.site_title' => 'BatchTitle',
             ]);
@@ -472,7 +472,7 @@ describe('Parametres / FileHandler', function () {
     describe('getMany', function () {
         it('Récupère plusieurs valeurs', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ]);
 
@@ -660,7 +660,7 @@ describe('Parametres / FileHandler', function () {
 
         it('setMany en mode différé ne persiste rien avant persistPendingProperties', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'DeferredName',
+                'test.site_name'  => 'DeferredName',
                 'test.site_email' => 'deferred@example.com',
             ]);
 
@@ -677,7 +677,7 @@ describe('Parametres / FileHandler', function () {
 
         xit('forgetMany en mode différé supprime après persistPendingProperties', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ]);
 

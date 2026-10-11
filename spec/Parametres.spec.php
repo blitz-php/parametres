@@ -74,7 +74,7 @@ describe('Parametres / Parametres', function () {
     describe('getMany', function () {
         it('retourne plusieurs valeurs', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ]);
 
@@ -108,7 +108,7 @@ describe('Parametres / Parametres', function () {
     describe('setMany', function () {
         it('stocke plusieurs valeurs', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ]);
 
@@ -125,7 +125,7 @@ describe('Parametres / Parametres', function () {
 
         it('respecte le contexte', function () {
             $this->parametres->setMany([
-                'test.site_name'=> 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ], 'testing:true');
 
@@ -137,8 +137,8 @@ describe('Parametres / Parametres', function () {
     describe('forgetMany', function () {
         xit('supprime plusieurs valeurs', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
-                'test.site_email'  => 'batch@example.com',
+                'test.site_name'  => 'BatchName',
+                'test.site_email' => 'batch@example.com',
             ]);
 
             $this->parametres->forgetMany(['test.site_name', 'test.site_email']);

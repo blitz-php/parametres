@@ -37,13 +37,13 @@ abstract class BaseHandler
         $results = [];
 
         foreach ($settings as $setting) {
-            $key = $setting['file'] . '::' . $setting['property'] . ($context === null ? '' : '::' . $context);
+            $key           = $setting['file'] . '::' . $setting['property'] . ($context === null ? '' : '::' . $context);
             $results[$key] = $this->get($setting['file'], $setting['property'], $context);
         }
 
         return $results;
     }
-    
+
     /**
      * Si le gestionnaire prend en charge l'enregistrement des valeurs, il DOIT surcharger cette méthode pour fournir cette fonctionnalité.
      * Tous les gestionnaires ne prennent pas en charge l'écriture des valeurs.
@@ -57,7 +57,7 @@ abstract class BaseHandler
     }
 
     /**
-     * Si le gestionnaire prend en charge l'enregistrement des valeurs, 
+     * Si le gestionnaire prend en charge l'enregistrement des valeurs,
      * il PEUT redéfinir cette méthode afin d'offrir une fonctionnalité de traitement par lots optimisée.
      *
      * @param list<array{file: string, property: string, value: mixed}> $settings
@@ -84,7 +84,7 @@ abstract class BaseHandler
     }
 
     /**
-     * Si le gestionnaire prend en charge l'oubli des valeurs, 
+     * Si le gestionnaire prend en charge l'oubli des valeurs,
      * il PEUT redéfinir cette méthode afin d'offrir une fonctionnalité de traitement par lots optimisée.
      *
      * @param list<array{file: string, property: string}> $settings

@@ -129,7 +129,7 @@ class Parametres
             [$file, , , $dotProperty] = $this->prepareFileAndProperty($key);
 
             $prepared[$file . '::' . $dotProperty] = [
-                'file'    => $file,
+                'file'     => $file,
                 'property' => $dotProperty,
                 'value'    => $value,
             ];
@@ -156,7 +156,7 @@ class Parametres
     }
 
     /**
-     * Supprime plusieurs paramètres du stockage persistant, 
+     * Supprime plusieurs paramètres du stockage persistant,
      * ce qui revient en fait à rétablir les valeurs par défaut figurant dans le fichier de configuration, le cas échéant.
      *
      * @param list<string> $keys
@@ -173,7 +173,7 @@ class Parametres
             [$file, , $dotProperty] = $this->prepareFileAndProperty($key);
 
             $prepared[$file . '::' . $dotProperty] = [
-                'file'    => $file,
+                'file'     => $file,
                 'property' => $dotProperty,
             ];
         }
