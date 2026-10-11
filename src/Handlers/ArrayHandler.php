@@ -160,8 +160,14 @@ class ArrayHandler extends BaseHandler
     protected function forgetStored(string $file, string $property, ?string $context): void
     {
         if ($context === null) {
+            if (! isset($this->general[$file])) {
+                return;
+            }
             Arr::forget($this->general[$file], $property);
         } else {
+            if (! isset($this->contexts[$context][$file])) {
+                return;
+            }
             Arr::forget($this->contexts[$context][$file], $property);
         }
     }
