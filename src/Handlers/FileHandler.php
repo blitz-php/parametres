@@ -106,6 +106,45 @@ class FileHandler extends ArrayHandler
     }
 
     /**
+     * Enregistre plusieurs valeurs dans des fichiers en vue d'une consultation ultérieure.
+     *
+     * @param list<array{file: string, property: string, value: mixed}> $settings
+     *
+     * @throws RuntimeException Pour les échecs d'écriture dans un fichier
+     */
+    public function setMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        $changesByFile = [];
+
+        foreach ($settings as $setting) {
+            $this->hydrate($setting['file'], $context);
+            $this->setStored($setting['file'], $setting['property'], $setting['value'], $context);
+
+            if ($this->deferWrites) {
+                $this->markPending($setting['file'], $setting['property'], $setting['value'], $context);
+            } else {
+                $changesByFile[$setting['file']][] = [
+                    'property' => $setting['property'],
+                    'value'    => $setting['value'],
+                    'delete'   => false,
+                ];
+            }
+        }
+
+        if ($this->deferWrites) {
+            return;
+        }
+
+        foreach ($changesByFile as $file => $changes) {
+            $this->persist($file, $context, $changes);
+        }
+    }
+
+    /**
      * Supprime l'enregistrement du stockage persistant, s'il est trouvé, et du cache local.
      *
      * @throws RuntimeException En cas d'échec d'écriture dans un fichier
@@ -126,6 +165,46 @@ class FileHandler extends ArrayHandler
                 'value'    => null,
                 'delete'   => true,
             ]]);
+        }
+    }
+
+    /**
+     * Supprime plusieurs enregistrements du stockage persistant, 
+     * s'ils existent, ainsi que du cache local.
+     *
+     * @param list<array{file: string, property: string}> $settings
+     *
+     * @throws RuntimeException Pour les échecs d'écriture dans un fichier
+     */
+    public function forgetMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        $changesByFile = [];
+
+        foreach ($settings as $setting) {
+            $this->hydrate($setting['file'], $context);
+            $this->forgetStored($setting['file'], $setting['property'], $context);
+
+            if ($this->deferWrites) {
+                $this->markPending($setting['file'], $setting['property'], null, $context, true);
+            } else {
+                $changesByFile[$setting['file']][] = [
+                    'property' => $setting['property'],
+                    'value'    => null,
+                    'delete'   => true,
+                ];
+            }
+        }
+
+        if ($this->deferWrites) {
+            return;
+        }
+
+        foreach ($changesByFile as $file => $changes) {
+            $this->persist($file, $context, $changes);
         }
     }
 

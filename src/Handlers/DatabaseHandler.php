@@ -99,6 +99,37 @@ class DatabaseHandler extends ArrayHandler
     }
 
     /**
+     * Enregistre plusieurs valeurs dans la base de données en vue d'une consultation ultérieure.
+     *
+     * @param list<array{file: string, property: string, value: mixed}> $settings
+     *
+     * @throws RuntimeException Pour les échecs de base de données
+     */
+    public function setMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        if ($this->deferWrites) {
+            $this->hydrate($context);
+
+            foreach ($settings as $setting) {
+                $this->markPending($setting['file'], $setting['property'], $setting['value'], $context);
+                $this->setStored($setting['file'], $setting['property'], $setting['value'], $context);
+            }
+
+            return;
+        }
+
+        $this->persistRows($this->prepareUpsertRows($settings, $context), []);
+
+        foreach ($settings as $setting) {
+            $this->setStored($setting['file'], $setting['property'], $setting['value'], $context);
+        }
+    }
+
+    /**
      * Enregistre une seule propriété dans la base de données.
      *
      * @throws RuntimeException En cas d'échec de la base de données
@@ -158,6 +189,36 @@ class DatabaseHandler extends ArrayHandler
 
         // Supprimer de la mémoire locale
         $this->forgetStored($file, $property, $context);
+    }
+
+    /**
+     * Supprime plusieurs enregistrements du stockage persistant, 
+     * s'ils existent, ainsi que du cache local.
+     *
+     * @param list<array{file: string, property: string}> $settings
+     */
+    public function forgetMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        $this->hydrate($context);
+
+        if ($this->deferWrites) {
+            foreach ($settings as $setting) {
+                $this->markPending($setting['file'], $setting['property'], null, $context, true);
+                $this->forgetStored($setting['file'], $setting['property'], $context);
+            }
+
+            return;
+        }
+
+        $this->persistRows([], $this->prepareDeleteRows($settings, $context));
+
+        foreach ($settings as $setting) {
+            $this->forgetStored($setting['file'], $setting['property'], $context);
+        }
     }
 
     /**

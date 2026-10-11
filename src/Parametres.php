@@ -83,6 +83,24 @@ class Parametres
     }
 
     /**
+     * Récupérer plusieurs valeurs en utilisant le même comportement que la fonction get().
+     *
+     * @param list<string> $keys
+     *
+     * @return array<string, mixed>
+     */
+    public function getMany(array $keys, ?string $context = null): array
+    {
+        $settings = [];
+
+        foreach ($keys as $key) {
+            $settings[$key] = $this->get($key, $context);
+        }
+
+        return $settings;
+    }
+
+    /**
      * Sauvegarde d'une valeur dans le gestionnaire d'écriture pour récupération ultérieure.
      */
     public function set(string $key, mixed $value = null, ?string $context = null): void
@@ -91,6 +109,36 @@ class Parametres
 
         foreach ($this->getWriteHandlers() as $handler) {
             $handler->set($file, $dotProperty, $value, $context);
+        }
+    }
+
+    /**
+     * Enregistrez plusieurs valeurs dans le gestionnaire inscriptible afin de pouvoir les récupérer ultérieurement.
+     *
+     * @param array<string, mixed> $settings
+     */
+    public function setMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        $prepared = [];
+
+        foreach ($settings as $key => $value) {
+            [$file, , , $dotProperty] = $this->prepareFileAndProperty($key);
+
+            $prepared[$file . '::' . $dotProperty] = [
+                'file'    => $file,
+                'property' => $dotProperty,
+                'value'    => $value,
+            ];
+        }
+
+        $prepared = array_values($prepared);
+
+        foreach ($this->getWriteHandlers() as $handler) {
+            $handler->setMany($prepared, $context);
         }
     }
 
@@ -104,6 +152,36 @@ class Parametres
 
         foreach ($this->getWriteHandlers() as $handler) {
             $handler->forget($file, $dotProperty, $context);
+        }
+    }
+
+    /**
+     * Supprime plusieurs paramètres du stockage persistant, 
+     * ce qui revient en fait à rétablir les valeurs par défaut figurant dans le fichier de configuration, le cas échéant.
+     *
+     * @param list<string> $keys
+     */
+    public function forgetMany(array $keys, ?string $context = null): void
+    {
+        if ($keys === []) {
+            return;
+        }
+
+        $prepared = [];
+
+        foreach ($keys as $key) {
+            [$file, , $dotProperty] = $this->prepareFileAndProperty($key);
+
+            $prepared[$file . '::' . $dotProperty] = [
+                'file'    => $file,
+                'property' => $dotProperty,
+            ];
+        }
+
+        $prepared = array_values($prepared);
+
+        foreach ($this->getWriteHandlers() as $handler) {
+            $handler->forgetMany($prepared, $context);
         }
     }
 
