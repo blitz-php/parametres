@@ -14,7 +14,6 @@ namespace BlitzPHP\Parametres\Handlers;
 use BlitzPHP\Database\Builder\BaseBuilder;
 use BlitzPHP\Database\Connection\BaseConnection;
 use BlitzPHP\Database\Exceptions\DatabaseException;
-use BlitzPHP\Utilities\DateTime\Date;
 use RuntimeException;
 
 /**
@@ -89,6 +88,7 @@ class DatabaseHandler extends ArrayHandler
     public function set(string $file, string $property, mixed $value = null, ?string $context = null): void
     {
         if ($this->deferWrites) {
+            $this->hydrate($context);
             $this->markPending($file, $property, $value, $context);
         } else {
             $this->persist($file, $property, $value, $context);
@@ -136,21 +136,21 @@ class DatabaseHandler extends ArrayHandler
      */
     private function persist(string $file, string $property, mixed $value, ?string $context): void
     {
-        $time     = Date::now()->format('Y-m-d H:i:s');
+        $time     = date('Y-m-d H:i:s');
         $type     = gettype($value);
         $prepared = $this->prepareValue($value);
 
         // S'il a été stocké, nous devons le mettre à jour
         if ($this->has($file, $property, $context)) {
-            $result = $this->builder()->where('file', $file)->where('key', $property);
+            $query = $this->builder()->where('file', $file)->where('key', $property);
 
             if ($context === null) {
-                $result = $result->whereNull('context');
+                $query->whereNull('context');
             } else {
-                $result = $result->where('context', $context);
+                $query->where('context', $context);
             }
 
-            $result = $result->update([
+            $result = $query->update([
                 'value'      => $prepared,
                 'type'       => $type,
                 'context'    => $context,
@@ -325,73 +325,135 @@ class DatabaseHandler extends ArrayHandler
         }
 
         try {
-            $this->db->beginTransaction();
-
-            // Gérer les mises à jour avec insertion : récupérer les enregistrements existants correspondant à nos données en attente
-            if ($upserts !== []) {
-                // Construire une requête pour récupérer uniquement les enregistrements dont nous avons besoin
-                $builder = $this->buildOrWhereConditions($upserts, 'file', 'key', 'context');
-
-                $existing = $builder->clone()->result('array');
-
-                // Créez une carte des enregistrements existants pour faciliter la recherche
-                $existingMap = [];
-
-                foreach ($existing as $row) {
-                    $key               = $this->buildCompositeKey($row['file'], $row['key'], $row['context']);
-                    $existingMap[$key] = $row['id'];
-                }
-
-                // Distinguer les insertions des mises à jour
-                $inserts = [];
-                $updates = [];
-
-                foreach ($upserts as $row) {
-                    $key = $this->buildCompositeKey($row['file'], $row['key'], $row['context']);
-
-                    if (isset($existingMap[$key])) {
-                        // L'enregistrement existe - se préparer à la mise à jour
-                        $updates[] = [
-                            'id'         => $existingMap[$key],
-                            'value'      => $row['value'],
-                            'type'       => $row['type'],
-                            'updated_at' => $row['updated_at'],
-                        ];
-                    } else {
-                        // Nouvel enregistrement - préparation à l'insertion
-                        $inserts[] = $row;
-                    }
-                }
-
-                // Insérer de nouveaux enregistrements par lots
-                if ($inserts !== []) {
-                    $builder->bulkInsert($inserts);
-                }
-
-                // Mise à jour groupée des enregistrements existants
-                if ($updates !== []) {
-                    $builder->bulkUpdate($updates, 'id');
-                }
-            }
-
-            // Supprimer en bloc toutes les opérations de suppression
-            if ($deletes !== []) {
-                $builder = $this->buildOrWhereConditions($deletes, 'file', 'key', 'context');
-
-                $builder->delete();
-            }
-
-            $this->db->commit();
-
-            if ($this->db->transStatus() === false) {
-                logger()->error("Impossible d'enregistrer les propriétés en attente dans la base de données.");
-            }
+            $this->persistRows($upserts, $deletes);
 
             $this->pendingProperties = [];
-        } catch (DatabaseException $e) {
+        } catch (DatabaseException|RuntimeException $e) {
             logger()->error('Échec de la persistance des propriétés en attente : ' . $e->getMessage());
 
             $this->pendingProperties = [];
+        }
+    }
+
+    /**
+     * Prépare les lignes de la base de données en vue de leur persistance.
+     *
+     * @param list<array{file: string, property: string, value: mixed}> $settings
+     *
+     * @return list<array{file: string, key: string, value: mixed, type: string, context: string|null, created_at: string, updated_at: string}>
+     */
+    private function prepareUpsertRows(array $settings, ?string $context): array
+    {
+        $time = date('Y-m-d H:i:s');
+        $rows = [];
+
+        foreach ($settings as $setting) {
+            $rows[] = [
+                'file'       => $setting['file'],
+                'key'        => $setting['property'],
+                'value'      => $this->prepareValue($setting['value']),
+                'type'       => gettype($setting['value']),
+                'context'    => $context,
+                'created_at' => $time,
+                'updated_at' => $time,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Prépare les lignes de la base de données en vue de leur suppression définitive.
+     *
+     * @param list<array{file: string, property: string}> $settings
+     *
+     * @return list<array{file: string, key: string, context: string|null}>
+     */
+    private function prepareDeleteRows(array $settings, ?string $context): array
+    {
+        $rows = [];
+
+        foreach ($settings as $setting) {
+            $rows[] = [
+                'file'    => $setting['file'],
+                'key'     => $setting['property'],
+                'context' => $context,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Persiste les lignes préparées dans la base de données.
+     *
+     * @param list<array{file: string, key: string, value: mixed, type: string, context: string|null, created_at: string, updated_at: string}> $upserts
+     * @param list<array{file: string, key: string, context: string|null}>                                                                     $deletes
+     */
+    private function persistRows(array $upserts, array $deletes): void
+    {
+        if ($upserts === [] && $deletes === []) {
+            return;
+        }
+
+        $this->db->beginTransaction();
+
+        // Gérer les mises à jour avec insertion : récupérer les enregistrements existants correspondant à nos données en attente
+        if ($upserts !== []) {
+            // Construire une requête pour récupérer uniquement les enregistrements dont nous avons besoin
+            $builder = $this->buildOrWhereConditions($upserts, 'file', 'key', 'context');
+
+            $existing = $builder->clone()->result('array');
+
+            // Créez une carte des enregistrements existants pour faciliter la recherche
+            $existingMap = [];
+
+            foreach ($existing as $row) {
+                $key               = $this->buildCompositeKey($row['file'], $row['key'], $row['context']);
+                $existingMap[$key] = $row['id'];
+            }
+
+            // Distinguer les insertions des mises à jour
+            $inserts = [];
+            $updates = [];
+
+            foreach ($upserts as $row) {
+                $key = $this->buildCompositeKey($row['file'], $row['key'], $row['context']);
+
+                if (isset($existingMap[$key])) {
+                    // L'enregistrement existe - se préparer à la mise à jour
+                    $updates[] = [
+                        'id'         => $existingMap[$key],
+                        'value'      => $row['value'],
+                        'type'       => $row['type'],
+                        'updated_at' => $row['updated_at'],
+                    ];
+                } else {
+                    // Nouvel enregistrement - préparation à l'insertion
+                    $inserts[] = $row;
+                }
+            }
+
+            // Insérer de nouveaux enregistrements par lots
+            if ($inserts !== []) {
+                $builder->bulkInsert($inserts);
+            }
+
+            // Mise à jour groupée des enregistrements existants
+            if ($updates !== []) {
+                $builder->bulkUpdate($updates, 'id');
+            }
+        }
+
+        // Supprimer en bloc toutes les opérations de suppression
+        if ($deletes !== []) {
+            $this->buildOrWhereConditions($deletes, 'file', 'key', 'context')->delete();
+        }
+
+        $this->db->commit();
+
+        if ($this->db->transStatus() === false) {
+            logger()->error("Impossible d'enregistrer les propriétés en attente dans la base de données.");
         }
     }
 
@@ -412,9 +474,12 @@ class DatabaseHandler extends ArrayHandler
 
         foreach ($rows as $row) {
             $builder->orWhere(function ($q) use ($row, $fileKey, $keyKey, $contextKey) {
-                $q->where($fileKey, $row[$fileKey])
-                    ->where($keyKey, $row[$keyKey])
-                    ->where($contextKey, $row[$contextKey]);
+                $q->where([$fileKey => $row[$fileKey], $keyKey => $row[$keyKey]]);
+                if (null === $row[$contextKey]) {
+                    $q->whereNull($contextKey);
+                } else {
+                    $q->where($contextKey, $row[$contextKey]);
+                }
             });
         }
 

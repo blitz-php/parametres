@@ -164,7 +164,7 @@ class JsonHandler extends ArrayHandler
      */
     public function forget(string $file, string $property, ?string $context = null): void
     {
-        $this->hydrate($file);
+        $this->hydrate($context);
 
         // Suppression du stockage local
         $this->forgetStored($file, $property, $context);
@@ -289,7 +289,7 @@ class JsonHandler extends ArrayHandler
             $this->hydrated[] = null;
             $items            = $data->whereNull('context');
         } else {
-            // Si le général n'a pas été hydraté, on l'hydrate donc.
+            // Si le général n'a pas été hydraté, on l'hydrate en même temps.
             if (! in_array(null, $this->hydrated, true)) {
                 $this->hydrated[] = null;
                 $items            = $data->whereNull('context')->merge($data->where('context', $context));
@@ -320,6 +320,10 @@ class JsonHandler extends ArrayHandler
      */
     private function persistChanges(array $changes): void
     {
+        if ($changes === []) {
+            return;
+        }
+
         // Acquérir un verrou exclusif pour éviter les conflits d'écriture
         $lockHandle = fopen($this->file, 'c+b');
 

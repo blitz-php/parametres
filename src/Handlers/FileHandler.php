@@ -12,6 +12,7 @@
 namespace BlitzPHP\Parametres\Handlers;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * Fournit une persistance basée sur les fichiers pour les paramètres.
@@ -301,7 +302,7 @@ class FileHandler extends ArrayHandler
         }
 
         // Utiliser include pour obtenir le tableau de données
-        $data = include $filePath;
+        $data = @include $filePath;
 
         if (! is_array($data)) {
             throw new RuntimeException('Le fichier de paramètres ne retourne pas un tableau : ' . $filePath);
@@ -321,6 +322,9 @@ class FileHandler extends ArrayHandler
      * Persiste les changements de propriétés spécifiques sur le disque.
      * Utilisé à la fois pour les écritures immédiates et différées.
      *
+     * La lecture et l'écriture se font via le MÊME handle verrouillé,
+     * ce qui évite les conflits de verrou sur Windows (Permission denied).
+     *
      * @throws RuntimeException En cas d'échec d'écriture du fichier
      */
     private function persist(string $file, ?string $context, array $changes): void
@@ -334,39 +338,126 @@ class FileHandler extends ArrayHandler
             throw new RuntimeException('Impossible de créer le répertoire : ' . $directory);
         }
 
-        $currentData = [];
-        if (file_exists($filePath)) {
-            $currentData = include $filePath;
+        // Ouvrir/créer le fichier pour le verrouillage
+        $lockHandle = fopen($filePath, 'c+b');
 
-            if (! is_array($currentData)) {
-                $currentData = [];
-            }
+        if ($lockHandle === false) {
+            throw new RuntimeException('Impossible d\'ouvrir le fichier pour le verrouillage: ' . $filePath);
         }
 
-        // Appliquer tous les changements en attente
-        foreach ($changes as $change) {
-            if ($change['delete']) {
-                // Supprimer explicitement cette propriété
-                unset($currentData[$change['property']]);
-            } else {
-                // Définir ou mettre à jour cette propriété
-                $currentData[$change['property']] = [
-                    'value' => $change['value'],
-                    'type'  => gettype($change['value']),
-                ];
+        try {
+            // Acquérir un verrou exclusif
+            if (! flock($lockHandle, LOCK_EX)) {
+                throw new RuntimeException('Impossible d\'acquérir le verrou sur le fichier: ' . $filePath);
             }
-        }
 
-        // Générer le contenu du fichier PHP
-        $content = '<?php' . PHP_EOL . PHP_EOL;
-        $content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
+            // Vider le cache des statistiques de fichier pour obtenir la taille actuelle
+            clearstatcache(true, $filePath);
 
-        // Écrire le fichier
-        if (file_put_contents($filePath, $content, LOCK_EX) === false) {
-            throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
+            // Lire le contenu actuel via le handle déjà ouvert (pas de include)
+            // hack blitzphp personnel pour eviter les problemes de verou sous windows
+            $currentData = $this->readDataFromHandle($lockHandle);
+
+            // Appliquer tous les changements en attente
+            foreach ($changes as $change) {
+                if ($change['delete']) {
+                    // Supprimer explicitement cette propriété
+                    unset($currentData[$change['property']]);
+                } else {
+                    // Définir ou mettre à jour cette propriété
+                    $currentData[$change['property']] = [
+                        'value' => $change['value'],
+                        'type'  => gettype($change['value']),
+                    ];
+                }
+            }
+
+            // Générer le contenu du fichier PHP
+            $content = '<?php' . PHP_EOL . PHP_EOL;
+            $content .= 'return ' . var_export($currentData, true) . ';' . PHP_EOL;
+
+            // Vider le fichier et réécrire via le MÊME handle
+            ftruncate($lockHandle, 0);
+            rewind($lockHandle);
+
+            if (fwrite($lockHandle, $content) === false) {
+                throw new RuntimeException('Impossible d\'écrire le fichier de paramètres : ' . $filePath);
+            }
+
+            fflush($lockHandle);
+        } finally {
+            flock($lockHandle, LOCK_UN);
+            fclose($lockHandle);
         }
 
         @chmod($filePath, 0644);
+    }
+
+    /**
+     * Lit les données depuis un handle de fichier PHP déjà verrouillé.
+     *
+     * Évite d'utiliser `include` qui ouvrirait un second handle,
+     * ce qui provoquerait un conflit de verrou sur Windows
+     * (Permission denied: Read of 4096 bytes failed with errno=13).
+     *
+     * @param resource $handle
+     *
+     * @return array<string, array{value: mixed, type: string}>
+     */
+    private function readDataFromHandle($handle): array
+    {
+        $content = '';
+        rewind($handle);
+
+        while (! feof($handle)) {
+            $chunk = fread($handle, 8192);
+
+            if ($chunk === false) {
+                break;
+            }
+
+            $content .= $chunk;
+        }
+
+        if (trim($content) === '') {
+            return [];
+        }
+
+        // Extraire le tableau retourné par le fichier PHP (qui contient `return [...]`)
+        $data = $this->evaluatePhpReturn($content);
+
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Évalue un contenu PHP de la forme `<?php return [...];` de manière isolée.
+     *
+     * Utilise `eval` dans une closure statique pour éviter de polluer le scope courant.
+     * Toute erreur est silencieusement convertie en tableau vide.
+     */
+    private function evaluatePhpReturn(string $content): mixed
+    {
+        // Retirer la balise d'ouverture PHP
+        $content = preg_replace('/^\s*<\?php\s*/i', '', $content);
+
+        // Retirer le point-virgule final éventuel
+        $content = rtrim(trim($content), ';');
+
+        // Vérifier que le contenu commence bien par `return`
+        if (! str_starts_with($content, 'return')) {
+            return [];
+        }
+
+        try {
+            // Évaluation isolée dans une closure statique
+            // (aucune variable du scope courant n'est accessible)
+            $evaluate = static fn () => eval($content . ';');
+
+            return $evaluate();
+        } catch (Throwable $e) {
+            // En cas d'erreur de parsing, on ignore le contenu corrompu
+            return [];
+        }
     }
 
     /**

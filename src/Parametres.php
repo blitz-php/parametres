@@ -148,7 +148,7 @@ class Parametres
      */
     public function forget(string $key, ?string $context = null): void
     {
-        [$file, , $dotProperty] = $this->prepareFileAndProperty($key);
+        [$file, , , $dotProperty] = $this->prepareFileAndProperty($key);
 
         foreach ($this->getWriteHandlers() as $handler) {
             $handler->forget($file, $dotProperty, $context);
@@ -170,7 +170,7 @@ class Parametres
         $prepared = [];
 
         foreach ($keys as $key) {
-            [$file, , $dotProperty] = $this->prepareFileAndProperty($key);
+            [$file, , , $dotProperty] = $this->prepareFileAndProperty($key);
 
             $prepared[$file . '::' . $dotProperty] = [
                 'file'     => $file,
