@@ -192,7 +192,7 @@ class DatabaseHandler extends ArrayHandler
     }
 
     /**
-     * Supprime plusieurs enregistrements du stockage persistant, 
+     * Supprime plusieurs enregistrements du stockage persistant,
      * s'ils existent, ainsi que du cache local.
      *
      * @param list<array{file: string, property: string}> $settings

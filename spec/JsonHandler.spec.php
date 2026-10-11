@@ -356,7 +356,7 @@ describe('Parametres / JsonHandler', function () {
     describe('setMany', function () {
         it('Insere plusieurs donnees en une seule operation', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
                 'test.site_title' => 'BatchTitle',
             ]);
@@ -374,7 +374,7 @@ describe('Parametres / JsonHandler', function () {
 
         it('Insere plusieurs donnees avec le contexte', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'ContextName',
+                'test.site_name'  => 'ContextName',
                 'test.site_email' => 'context@example.com',
             ], 'environment:test');
 
@@ -399,12 +399,12 @@ describe('Parametres / JsonHandler', function () {
 
         it('Ne cree pas de doublons lors de la mise a jour via setMany', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'InitialName',
+                'test.site_name'  => 'InitialName',
                 'test.site_email' => 'initial@example.com',
             ]);
 
             $this->parametres->setMany([
-                'test.site_name' => 'UpdatedName',
+                'test.site_name'  => 'UpdatedName',
                 'test.site_email' => 'updated@example.com',
                 'test.site_title' => 'NewTitle',
             ]);
@@ -423,7 +423,7 @@ describe('Parametres / JsonHandler', function () {
     describe('forgetMany', function () {
         it('Supprime plusieurs donnees', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
                 'test.site_title' => 'BatchTitle',
             ]);
@@ -461,7 +461,7 @@ describe('Parametres / JsonHandler', function () {
     describe('getMany', function () {
         it('Recupere plusieurs valeurs', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ]);
 
@@ -646,7 +646,7 @@ describe('Parametres / JsonHandler', function () {
 
         it('setMany en mode differe persiste apres persistPendingProperties', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'DeferredName',
+                'test.site_name'  => 'DeferredName',
                 'test.site_email' => 'deferred@example.com',
             ]);
 

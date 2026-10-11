@@ -74,10 +74,11 @@ describe('Parametres / DatabaseHandler', function () {
         $this->group      = $config['database']['group'];
     });
 
-    afterEach(function() {
+    afterEach(function () {
         try {
             $this->db->table($this->table)->delete();
-        } catch(Exception) {}
+        } catch (Exception) {
+        }
     });
 
     it('Insert bien les donnees en bd', function () {
@@ -336,9 +337,9 @@ describe('Parametres / DatabaseHandler', function () {
     describe('setMany', function () {
         it('Insere plusieurs donnees en une seule operation', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
-                'test.site_email' => 'batch@example.com',
-                'test.site_title' => 'BatchTitle',
+                'test.site_name'    => 'BatchName',
+                'test.site_email'   => 'batch@example.com',
+                'test.site_title'   => 'BatchTitle',
                 'test.site_enabled' => true,
             ]);
 
@@ -349,7 +350,7 @@ describe('Parametres / DatabaseHandler', function () {
                 ['key' => 'site_enabled', 'value' => '1', 'type' => 'boolean'],
             ] as $expected) {
                 expect($this->seeInDatabase($this->table, [
-                    'file' => 'test',
+                    'file'  => 'test',
                     'key'   => $expected['key'],
                     'value' => $expected['value'],
                     'type'  => $expected['type'],
@@ -364,13 +365,13 @@ describe('Parametres / DatabaseHandler', function () {
             ], 'environment:test');
 
             expect($this->seeInDatabase($this->table, [
-                'file'   => 'example',
+                'file'    => 'example',
                 'key'     => 'site_name',
                 'value'   => 'ContextName',
                 'context' => 'environment:test',
             ]))->toBeTruthy();
             expect($this->seeInDatabase($this->table, [
-                'file'   => 'example',
+                'file'    => 'example',
                 'key'     => 'site_email',
                 'value'   => 'context@example.com',
                 'context' => 'environment:test',
@@ -386,12 +387,12 @@ describe('Parametres / DatabaseHandler', function () {
             ]);
 
             expect($this->seeInDatabase($this->table, [
-                'file' => 'example',
+                'file'  => 'example',
                 'key'   => 'site_name',
                 'value' => 'BatchName',
             ]))->toBeTruthy();
             expect($this->seeInDatabase($this->table, [
-                'file' => 'nada',
+                'file'  => 'nada',
                 'key'   => 'site_name',
                 'value' => 'NadaName',
             ]))->toBeTruthy();
@@ -419,7 +420,7 @@ describe('Parametres / DatabaseHandler', function () {
                 'site_title' => 'NewTitle',
             ] as $key => $value) {
                 expect($this->seeInDatabase($this->table, [
-                    'file' => 'example',
+                    'file'  => 'example',
                     'key'   => $key,
                     'value' => $value,
                 ]))->toBeTruthy();
@@ -439,12 +440,12 @@ describe('Parametres / DatabaseHandler', function () {
 
             expect($this->seeInDatabase($this->table, [
                 'file' => 'example',
-                'key'   => 'site_name',
+                'key'  => 'site_name',
             ]))->toBeFalsy();
 
             expect($this->seeInDatabase($this->table, [
                 'file' => 'example',
-                'key'   => 'site_email',
+                'key'  => 'site_email',
             ]))->toBeFalsy();
 
             expect($this->seeInDatabase($this->table, [
@@ -464,12 +465,12 @@ describe('Parametres / DatabaseHandler', function () {
 
             expect($this->seeInDatabase($this->table, [
                 'file' => 'example',
-                'key'   => 'site_name',
+                'key'  => 'site_name',
             ]))->toBeFalsy();
 
             expect($this->seeInDatabase($this->table, [
                 'file' => 'nada',
-                'key'   => 'site_name',
+                'key'  => 'site_name',
             ]))->toBeFalsy();
         });
 
@@ -497,7 +498,7 @@ describe('Parametres / DatabaseHandler', function () {
     describe('getMany', function () {
         it('Recupere plusieurs valeurs', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'BatchName',
+                'test.site_name'  => 'BatchName',
                 'test.site_email' => 'batch@example.com',
             ]);
 
@@ -804,7 +805,7 @@ describe('Parametres / DatabaseHandler', function () {
 
         it('setMany en mode differe persiste apres persistPendingProperties', function () {
             $this->parametres->setMany([
-                'test.site_name' => 'DeferredName',
+                'test.site_name'  => 'DeferredName',
                 'test.site_email' => 'deferred@example.com',
             ]);
 
