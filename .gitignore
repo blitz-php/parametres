@@ -110,3 +110,4 @@ coveralls.json
 clover.xml
 
 spec/_support/database.sqlite
+spec/_support/**/*.log

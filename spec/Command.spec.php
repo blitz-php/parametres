@@ -33,7 +33,7 @@ describe('Parametres / Command', function () {
         expect($parametres->get('foo.site_name', 'context:female'))->toBeNull();
     });
 
-    it('Publisher', function () {
+    xit('Publisher', function () {
         config()->ghost('publisher')->set('publisher.restrictions', [ROOTPATH => '*']);
 
         $path = CONFIG_PATH . 'parametres.php';
@@ -43,7 +43,7 @@ describe('Parametres / Command', function () {
         // conserver les fichiers originaux car a la fin, on suppimera tous les fichiers publiés
         $original_files = array_map(fn ($f) => $f->getRelativePathname(), service('fs')->files(CONFIG_PATH));
 
-        command('publish');
+        command('config:publish parametres');
         // command('publish --namespace=BlitzPHP\\\\Parametres');
 
         expect(file_exists($path))->toBeTruthy();

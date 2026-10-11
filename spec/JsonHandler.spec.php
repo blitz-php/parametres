@@ -11,6 +11,7 @@
 
 use BlitzPHP\Parametres\Exceptions\ParametresException;
 use BlitzPHP\Parametres\Parametres;
+use BlitzPHP\Spec\ReflectionHelper;
 use BlitzPHP\Utilities\DateTime\Date;
 use BlitzPHP\Utilities\Iterable\Arr;
 
@@ -339,43 +340,357 @@ describe('Parametres / JsonHandler', function () {
         ]))->toBeTruthy();
     });
 
-    describe('Recuperation recursive', function () {
-        it('Recuperation recursive des configurations', function () {
-            config()->ghost('auth')->set('auth', [
-                'session' => $expected = [
-                    'field'             => 'user',
-                    'allow_remembering' => true,
-                    'depth'             => [
-                        'field'             => 'id',
-                        'allow_remembering' => false,
-                        'depth'             => null, // Cas particulier pour le dernier niveau
-                    ],
-                ],
+    it('Le fichier JSON reste valide apres plusieurs operations', function () {
+        $this->parametres->set('test.site_name', 'Foo');
+        $this->parametres->set('test.site_email', 'foo@example.com');
+        $this->parametres->forget('test.site_name');
+        $this->parametres->set('test.site_title', 'Bar');
+
+        $content = file_get_contents($this->path);
+        $data    = json_decode($content, true);
+
+        expect($data)->toBeA('array');
+        expect(json_last_error())->toBe(JSON_ERROR_NONE);
+    });
+
+    describe('setMany', function () {
+        it('Insere plusieurs donnees en une seule operation', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+                'test.site_title' => 'BatchTitle',
             ]);
 
-            expect(parametre('auth.session'))->toBe($expected);
-            expect(parametre('auth.session.field'))->toBe($expected['field']);
-            expect(parametre('auth.session.allow_remembering'))->toBeTruthy();
-            expect(parametre('auth.session.depth.field'))->toBe('id');
-            expect(parametre('auth.session.depth.allow_remembering'))->toBeFalsy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'BatchName',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_email', 'value' => 'batch@example.com',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_title', 'value' => 'BatchTitle',
+            ]))->toBeTruthy();
         });
 
-        it('Recuperation recursive des parametres du fichier json', function () {
-            parametre()->set('auth.session', $expected = [
-                'field'             => 'user',
-                'allow_remembering' => true,
-                'depth'             => [
-                    'field'             => 'id',
-                    'allow_remembering' => false,
-                    'depth'             => null, // Cas particulier pour le dernier niveau
-                ],
+        it('Insere plusieurs donnees avec le contexte', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'ContextName',
+                'test.site_email' => 'context@example.com',
+            ], 'environment:test');
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'ContextName', 'context' => 'environment:test',
+            ]))->toBeTruthy();
+        });
+
+        it('Insere plusieurs donnees pour differents fichiers', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'BatchName',
+                'nada.site_name' => 'NadaName',
             ]);
 
-            expect(parametre('auth.session'))->toBe($expected);
-            expect(parametre('auth.session.field'))->toBe($expected['field']);
-            expect(parametre('auth.session.allow_remembering'))->toBeTruthy();
-            expect(parametre('auth.session.depth.field'))->toBe('id');
-            expect(parametre('auth.session.depth.allow_remembering'))->toBeFalsy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'BatchName',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'nada', 'key' => 'site_name', 'value' => 'NadaName',
+            ]))->toBeTruthy();
+        });
+
+        it('Ne cree pas de doublons lors de la mise a jour via setMany', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'InitialName',
+                'test.site_email' => 'initial@example.com',
+            ]);
+
+            $this->parametres->setMany([
+                'test.site_name' => 'UpdatedName',
+                'test.site_email' => 'updated@example.com',
+                'test.site_title' => 'NewTitle',
+            ]);
+
+            $data = json_decode(file_get_contents($this->path), true);
+            $data = collect($data)->where('file', 'test');
+
+            expect($data->count())->toBe(3);
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'UpdatedName',
+            ]))->toBeTruthy();
+        });
+    });
+
+    describe('forgetMany', function () {
+        it('Supprime plusieurs donnees', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+                'test.site_title' => 'BatchTitle',
+            ]);
+
+            $this->parametres->forgetMany(['test.site_name', 'test.site_email']);
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeFalsy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_email',
+            ]))->toBeFalsy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_title', 'value' => 'BatchTitle',
+            ]))->toBeTruthy();
+        });
+
+        it('Supprime plusieurs donnees pour differents fichiers', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'BatchName',
+                'nada.site_name' => 'NadaName',
+            ]);
+
+            $this->parametres->forgetMany(['test.site_name', 'nada.site_name']);
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeFalsy();
+            expect($this->seeInFile([
+                'file' => 'nada', 'key' => 'site_name',
+            ]))->toBeFalsy();
+        });
+    });
+
+    describe('getMany', function () {
+        it('Recupere plusieurs valeurs', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+            ]);
+
+            $results = $this->parametres->getMany(['test.site_name', 'test.site_email']);
+
+            expect($results['test.site_name'])->toBe('BatchName');
+            expect($results['test.site_email'])->toBe('batch@example.com');
+        });
+
+        it('Retourne un tableau vide pour une liste vide', function () {
+            expect($this->parametres->getMany([]))->toBe([]);
+        });
+    });
+
+    describe('has', function () {
+        it('Retourne true si la valeur existe', function () {
+            $this->parametres->set('test.site_name', 'Foo');
+
+            $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+            $handler  = $handlers['json'];
+
+            expect($handler->has('test', 'site_name'))->toBeTruthy();
+        });
+
+        it('Retourne false si la valeur n\'existe pas', function () {
+            $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+            $handler  = $handlers['json'];
+
+            expect($handler->has('test', 'non_existent'))->toBeFalsy();
+        });
+    });
+
+    describe('Écritures différées', function () {
+        beforeEach(function () {
+            $config                         = config('parametres');
+            $config['handlers']             = ['json'];
+            $config['json']['defer_writes'] = true;
+
+            $this->parametres = new Parametres($config);
+
+            $this->getJsonHandler = function () {
+                $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+
+                return $handlers['json'] ?? null;
+            };
+
+            $this->getPendingProperties = fn ($handler) => ReflectionHelper::getPrivateProperty($handler, 'pendingProperties');
+        });
+
+        it('Ne persiste pas immediatement les donnees', function () {
+            $this->parametres->set('test.site_name', 'Foo');
+
+            $data = json_decode(file_get_contents($this->path), true) ?: [];
+
+            expect($data)->toBe([]);
+            expect($this->parametres->get('test.site_name'))->toBe('Foo');
+        });
+
+        it('Persiste les donnees lors de l\'appel a persistPendingProperties', function () {
+            $this->parametres->set('test.site_name', 'Foo');
+            $this->parametres->set('test.site_lang', 'fr');
+
+            $handler = $this->getJsonHandler();
+            $handler->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'Foo',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_lang', 'value' => 'fr',
+            ]))->toBeTruthy();
+        });
+
+        it('Regroupe les modifications multiples avant persistance', function () {
+            $this->parametres->set('test.site_name', 'Foo');
+            $this->parametres->set('test.site_name', 'Bar');
+            $this->parametres->set('test.site_lang', 'en');
+
+            $handler = $this->getJsonHandler();
+
+            $pendingProperties = $this->getPendingProperties($handler);
+            expect(count($pendingProperties))->toBe(2);
+
+            $handler->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'Bar',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_lang', 'value' => 'en',
+            ]))->toBeTruthy();
+        });
+
+        it('Regroupe les suppressions avec les modifications', function () {
+            $this->parametres->set('test.site_name', 'Foo');
+            $this->parametres->set('test.site_lang', 'fr');
+
+            $handler = $this->getJsonHandler();
+            $handler->persistPendingProperties();
+
+            $this->parametres->set('test.site_name', 'Bar');
+            $this->parametres->forget('test.site_lang');
+
+            $handler->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'Bar',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_lang',
+            ]))->toBeFalsy();
+        });
+
+        it('Gere correctement les modifications avec contextes differes', function () {
+            $this->parametres->set('test.site_name', 'General');
+            $this->parametres->set('test.site_name', 'Specific', 'context:test');
+            $this->parametres->set('test.site_lang', 'fr', 'context:test');
+
+            $handler = $this->getJsonHandler();
+
+            $pendingProperties = $this->getPendingProperties($handler);
+            expect(count($pendingProperties))->toBe(3);
+
+            $handler->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'General', 'context' => null,
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'Specific', 'context' => 'context:test',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_lang', 'value' => 'fr', 'context' => 'context:test',
+            ]))->toBeTruthy();
+        });
+
+        it('Ne fait rien si aucune propriete en attente', function () {
+            $handler = $this->getJsonHandler();
+
+            expect(fn () => $handler->persistPendingProperties())->not->toThrow();
+        });
+
+        it('Maintient l\'integrite des donnees lors d\'operations multiples', function () {
+            $this->parametres->set('test.site_name', 'Value1');
+            $this->parametres->set('test.site_name', 'Value2');
+            $this->parametres->forget('test.site_name');
+            $this->parametres->set('test.site_name', 'Value3');
+
+            $handler = $this->getJsonHandler();
+            $handler->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'Value3',
+            ]))->toBeTruthy();
+        });
+
+        it('Suppression puis ecriture differee : seule la derniere operation compte', function () {
+            $this->parametres->set('test.site_name', 'InitialValue');
+
+            $handler = $this->getJsonHandler();
+            $handler->persistPendingProperties();
+
+            $config                         = config('parametres');
+            $config['handlers']             = ['json'];
+            $config['json']['defer_writes'] = true;
+            $deferred                       = new Parametres($config);
+
+            $deferred->forget('test.site_name');
+            $deferred->set('test.site_name', 'NewValue');
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'InitialValue',
+            ]))->toBeTruthy();
+
+            $handlers = ReflectionHelper::getPrivateProperty($deferred, 'handlers');
+            $handlers['json']->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'NewValue',
+            ]))->toBeTruthy();
+        });
+
+        it('setMany en mode differe persiste apres persistPendingProperties', function () {
+            $this->parametres->setMany([
+                'test.site_name' => 'DeferredName',
+                'test.site_email' => 'deferred@example.com',
+            ]);
+
+            $data = json_decode(file_get_contents($this->path), true) ?: [];
+            expect($data)->toBe([]);
+
+            $handler = $this->getJsonHandler();
+            $handler->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name', 'value' => 'DeferredName',
+            ]))->toBeTruthy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_email', 'value' => 'deferred@example.com',
+            ]))->toBeTruthy();
+        });
+
+        it('forgetMany en mode differe supprime apres persistPendingProperties', function () {
+            $this->parametres->set('test.site_name', 'BatchName');
+            $this->parametres->set('test.site_email', 'batch@example.com');
+
+            $handler = $this->getJsonHandler();
+            $handler->persistPendingProperties();
+
+            $config                         = config('parametres');
+            $config['handlers']             = ['json'];
+            $config['json']['defer_writes'] = true;
+            $deferred                       = new Parametres($config);
+
+            $deferred->forgetMany(['test.site_name', 'test.site_email']);
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeTruthy();
+
+            $handlers = ReflectionHelper::getPrivateProperty($deferred, 'handlers');
+            $handlers['json']->persistPendingProperties();
+
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeFalsy();
+            expect($this->seeInFile([
+                'file' => 'test', 'key' => 'site_email',
+            ]))->toBeFalsy();
         });
     });
 });

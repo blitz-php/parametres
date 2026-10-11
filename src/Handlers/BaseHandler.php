@@ -26,6 +26,25 @@ abstract class BaseHandler
     abstract public function get(string $file, string $property, ?string $context = null): mixed;
 
     /**
+     * Récupère plusieurs valeurs du gestionnaire.
+     *
+     * @param list<array{file: string, property: string}> $settings
+     *
+     * @return array<string, mixed> Tableau associatif [clé composite => valeur]
+     */
+    public function getMany(array $settings, ?string $context = null): array
+    {
+        $results = [];
+
+        foreach ($settings as $setting) {
+            $key = $setting['file'] . '::' . $setting['property'] . ($context === null ? '' : '::' . $context);
+            $results[$key] = $this->get($setting['file'], $setting['property'], $context);
+        }
+
+        return $results;
+    }
+    
+    /**
      * Si le gestionnaire prend en charge l'enregistrement des valeurs, il DOIT surcharger cette méthode pour fournir cette fonctionnalité.
      * Tous les gestionnaires ne prennent pas en charge l'écriture des valeurs.
      * Doit lancer une RuntimeException en cas d'échec.
