@@ -11,6 +11,8 @@
 
 namespace BlitzPHP\Parametres\Handlers;
 
+use BlitzPHP\Utilities\Iterable\Arr;
+
 /**
  * Gestionnaire de paramètres via des tableaux
  *
@@ -97,10 +99,10 @@ class ArrayHandler extends BaseHandler
     protected function hasStored(string $file, string $property, ?string $context = null): bool
     {
         if ($context === null) {
-            return isset($this->general[$file]) && array_key_exists($property, $this->general[$file]);
+            return isset($this->general[$file]) && Arr::has($this->general[$file], $property);
         }
 
-        return isset($this->contexts[$context][$file]) && array_key_exists($property, $this->contexts[$context][$file]);
+        return isset($this->contexts[$context][$file]) && Arr::has($this->contexts[$context][$file], $property);
     }
 
     /**
@@ -114,9 +116,15 @@ class ArrayHandler extends BaseHandler
             return null;
         }
 
-        return $context === null
-            ? $this->parseValue(...$this->general[$file][$property])
-            : $this->parseValue(...$this->contexts[$context][$file][$property]);
+        $value = $context === null
+            ? Arr::get($this->general[$file], $property)
+            : Arr::get($this->contexts[$context][$file], $property);
+
+        if (Arr::dimensions($value) === 2) {
+            return array_map(fn($v) => $this->parseValue(...$v), $value);
+        }
+        
+        return $this->parseValue(...$value);
     }
 
     /**
@@ -128,15 +136,21 @@ class ArrayHandler extends BaseHandler
         $value = $this->prepareValue($value);
 
         if ($context === null) {
-            $this->general[$file][$property] = [
+            if (empty($this->general[$file])) {
+                $this->general[$file] = [];
+            }
+            Arr::set($this->general[$file], $property, [
                 $value,
                 $type,
-            ];
+            ]);
         } else {
-            $this->contexts[$context][$file][$property] = [
+            if (empty($this->contexts[$context][$file])) {
+                $this->contexts[$context][$file] = [];
+            }
+            Arr::set($this->contexts[$context][$file], $property, [
                 $value,
                 $type,
-            ];
+            ]);
         }
     }
 
@@ -146,9 +160,9 @@ class ArrayHandler extends BaseHandler
     protected function forgetStored(string $file, string $property, ?string $context): void
     {
         if ($context === null) {
-            unset($this->general[$file][$property]);
+            Arr::forget($this->general[$file], $property);
         } else {
-            unset($this->contexts[$context][$file][$property]);
+            Arr::forget($this->contexts[$context][$file], $property);
         }
     }
 
