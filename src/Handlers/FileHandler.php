@@ -451,9 +451,7 @@ class FileHandler extends ArrayHandler
         try {
             // Évaluation isolée dans une closure statique
             // (aucune variable du scope courant n'est accessible)
-            $evaluate = static function () use ($content) {
-                return eval($content . ';');
-            };
+            $evaluate = static fn () => eval($content . ';');
 
             return $evaluate();
         } catch (Throwable $e) {
