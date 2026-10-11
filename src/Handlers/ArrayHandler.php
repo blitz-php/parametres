@@ -121,9 +121,9 @@ class ArrayHandler extends BaseHandler
             : Arr::get($this->contexts[$context][$file], $property);
 
         if (Arr::dimensions($value) === 2) {
-            return array_map(fn($v) => $this->parseValue(...$v), $value);
+            return array_map(fn ($v) => $this->parseValue(...$v), $value);
         }
-        
+
         return $this->parseValue(...$value);
     }
 
