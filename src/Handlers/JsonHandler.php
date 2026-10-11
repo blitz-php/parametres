@@ -116,6 +116,48 @@ class JsonHandler extends ArrayHandler
     }
 
     /**
+     * Enregistre plusieurs valeurs dans le fichier JSON en une seule opération d'écriture.
+     *
+     * @param list<array{file: string, property: string, value: mixed}> $settings
+     *
+     * @throws RuntimeException En cas d'échec d'écriture
+     */
+    public function setMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        $this->hydrate($context);
+
+        $changes = [];
+
+        foreach ($settings as $setting) {
+            // Mise à jour du stockage en mémoire
+            $this->setStored($setting['file'], $setting['property'], $setting['value'], $context);
+
+            if ($this->deferWrites) {
+                $this->markPending($setting['file'], $setting['property'], $setting['value'], $context);
+            } else {
+                $changes[] = [
+                    'file'     => $setting['file'],
+                    'property' => $setting['property'],
+                    'value'    => $setting['value'],
+                    'context'  => $context,
+                    'delete'   => false,
+                ];
+            }
+        }
+
+        if ($this->deferWrites || $changes === []) {
+            return;
+        }
+
+        // Persister tous les changements en une seule opération
+        $this->persistChanges($changes);
+    }
+
+    /**
      * Supprime l'enregistrement du stockage persistant, s'il existe, et du cache local.
      *
      * @throws RuntimeException En cas d'échec d'écriture
@@ -139,6 +181,48 @@ class JsonHandler extends ArrayHandler
                 'delete'   => true,
             ]]);
         }
+    }
+
+    /**
+     * Supprime plusieurs enregistrements du stockage persistant en une seule opération d'écriture.
+     *
+     * @param list<array{file: string, property: string}> $settings
+     *
+     * @throws RuntimeException En cas d'échec d'écriture
+     */
+    public function forgetMany(array $settings, ?string $context = null): void
+    {
+        if ($settings === []) {
+            return;
+        }
+
+        $this->hydrate($context);
+
+        $changes = [];
+
+        foreach ($settings as $setting) {
+            // Suppression du stockage local
+            $this->forgetStored($setting['file'], $setting['property'], $context);
+
+            if ($this->deferWrites) {
+                $this->markPending($setting['file'], $setting['property'], null, $context, true);
+            } else {
+                $changes[] = [
+                    'file'     => $setting['file'],
+                    'property' => $setting['property'],
+                    'value'    => null,
+                    'context'  => $context,
+                    'delete'   => true,
+                ];
+            }
+        }
+
+        if ($this->deferWrites || $changes === []) {
+            return;
+        }
+
+        // Persister toutes les suppressions en une seule opération
+        $this->persistChanges($changes);
     }
 
     /**

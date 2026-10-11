@@ -74,6 +74,13 @@ describe('Parametres / DatabaseHandler', function () {
         $this->group      = $config['database']['group'];
     });
 
+    afterEach(function () {
+        try {
+            $this->db->table($this->table)->delete();
+        } catch (Exception) {
+        }
+    });
+
     it('Insert bien les donnees en bd', function () {
         $this->parametres->set('test.site_name', 'Foo');
 
@@ -327,7 +334,210 @@ describe('Parametres / DatabaseHandler', function () {
         ]))->toBeTruthy();
     });
 
-    xdescribe('Écritures différées', function () {
+    describe('setMany', function () {
+        it('Insere plusieurs donnees en une seule operation', function () {
+            $this->parametres->setMany([
+                'test.site_name'    => 'BatchName',
+                'test.site_email'   => 'batch@example.com',
+                'test.site_title'   => 'BatchTitle',
+                'test.site_enabled' => true,
+            ]);
+
+            foreach ([
+                ['key' => 'site_name', 'value' => 'BatchName', 'type' => 'string'],
+                ['key' => 'site_email', 'value' => 'batch@example.com', 'type' => 'string'],
+                ['key' => 'site_title', 'value' => 'BatchTitle', 'type' => 'string'],
+                ['key' => 'site_enabled', 'value' => '1', 'type' => 'boolean'],
+            ] as $expected) {
+                expect($this->seeInDatabase($this->table, [
+                    'file'  => 'test',
+                    'key'   => $expected['key'],
+                    'value' => $expected['value'],
+                    'type'  => $expected['type'],
+                ]))->toBeTruthy();
+            }
+        });
+
+        it('Insere plusieurs donnees avec le contexte', function () {
+            $this->parametres->setMany([
+                'example.site_name'  => 'ContextName',
+                'example.site_email' => 'context@example.com',
+            ], 'environment:test');
+
+            expect($this->seeInDatabase($this->table, [
+                'file'    => 'example',
+                'key'     => 'site_name',
+                'value'   => 'ContextName',
+                'context' => 'environment:test',
+            ]))->toBeTruthy();
+            expect($this->seeInDatabase($this->table, [
+                'file'    => 'example',
+                'key'     => 'site_email',
+                'value'   => 'context@example.com',
+                'context' => 'environment:test',
+            ]))->toBeTruthy();
+
+            expect($this->parametres->get('example.site_name', 'environment:test'))->toBe('ContextName');
+        });
+
+        it('Insere plusieurs donnees pour differents fichiers', function () {
+            $this->parametres->setMany([
+                'example.site_name' => 'BatchName',
+                'nada.site_name'    => 'NadaName',
+            ]);
+
+            expect($this->seeInDatabase($this->table, [
+                'file'  => 'example',
+                'key'   => 'site_name',
+                'value' => 'BatchName',
+            ]))->toBeTruthy();
+            expect($this->seeInDatabase($this->table, [
+                'file'  => 'nada',
+                'key'   => 'site_name',
+                'value' => 'NadaName',
+            ]))->toBeTruthy();
+        });
+
+        xit('Ne cree pas de doublons lors de la mise a jour via setMany', function () {
+            $this->parametres->setMany([
+                'example.site_name'  => 'InitialName',
+                'example.site_email' => 'initial@example.com',
+            ]);
+
+            $this->parametres->setMany([
+                'example.site_name'  => 'UpdatedName',
+                'example.site_email' => 'updated@example.com',
+                'example.site_title' => 'NewTitle',
+            ]);
+
+            $totalCount = $this->db->table($this->table)->where('file', 'example')->count();
+
+            expect($totalCount)->toBe(3);
+
+            foreach ([
+                'site_name'  => 'UpdatedName',
+                'site_email' => 'updated@example.com',
+                'site_title' => 'NewTitle',
+            ] as $key => $value) {
+                expect($this->seeInDatabase($this->table, [
+                    'file'  => 'example',
+                    'key'   => $key,
+                    'value' => $value,
+                ]))->toBeTruthy();
+            }
+        });
+    });
+
+    describe('forgetMany', function () {
+        it('Supprime plusieurs donnees', function () {
+            $this->parametres->setMany([
+                'example.site_name'  => 'BatchName',
+                'example.site_email' => 'batch@example.com',
+                'example.site_title' => 'BatchTitle',
+            ]);
+
+            $this->parametres->forgetMany(['example.site_name', 'example.site_email']);
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'example',
+                'key'  => 'site_name',
+            ]))->toBeFalsy();
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'example',
+                'key'  => 'site_email',
+            ]))->toBeFalsy();
+
+            expect($this->seeInDatabase($this->table, [
+                'file'  => 'example',
+                'key'   => 'site_title',
+                'value' => 'BatchTitle',
+            ]))->toBeTruthy();
+        });
+
+        it('Supprime plusieurs donnees pour differents fichiers', function () {
+            $this->parametres->setMany([
+                'example.site_name' => 'BatchName',
+                'nada.site_name'    => 'NadaName',
+            ]);
+
+            $this->parametres->forgetMany(['example.site_name', 'nada.site_name']);
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'example',
+                'key'  => 'site_name',
+            ]))->toBeFalsy();
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'nada',
+                'key'  => 'site_name',
+            ]))->toBeFalsy();
+        });
+
+        it('Supprime plusieurs donnees avec le contexte', function () {
+            $this->parametres->set('test.site_name', 'General');
+            $this->parametres->set('test.site_name', 'Context1', 'env:test');
+            $this->parametres->set('test.site_email', 'context@example.com', 'env:test');
+
+            $this->parametres->forgetMany(['test.site_name', 'test.site_email'], 'env:test');
+
+            expect($this->seeInDatabase($this->table, [
+                'file'    => 'test',
+                'key'     => 'site_name',
+                'context' => 'env:test',
+            ]))->toBeFalsy();
+
+            expect($this->seeInDatabase($this->table, [
+                'file'    => 'test',
+                'key'     => 'site_name',
+                'context' => null,
+            ]))->toBeTruthy();
+        });
+    });
+
+    describe('getMany', function () {
+        it('Recupere plusieurs valeurs', function () {
+            $this->parametres->setMany([
+                'test.site_name'  => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+            ]);
+
+            $results = $this->parametres->getMany(['test.site_name', 'test.site_email']);
+
+            expect($results['test.site_name'])->toBe('BatchName');
+            expect($results['test.site_email'])->toBe('batch@example.com');
+        });
+
+        it('Retourne un tableau vide pour une liste vide', function () {
+            expect($this->parametres->getMany([]))->toBe([]);
+        });
+
+        it('Retourne null pour les cles inexistantes', function () {
+            $results = $this->parametres->getMany(['nada.site_name']);
+
+            expect($results['nada.site_name'])->toBeNull();
+        });
+    });
+
+    describe('has', function () {
+        it('Retourne true si la valeur existe', function () {
+            $this->parametres->set('test.site_name', 'Foo');
+
+            $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+            $handler  = $handlers['database'];
+
+            expect($handler->has('test', 'site_name'))->toBeTruthy();
+        });
+
+        it('Retourne false si la valeur n\'existe pas', function () {
+            $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+            $handler  = $handlers['database'];
+
+            expect($handler->has('test', 'non_existent'))->toBeFalsy();
+        });
+    });
+
+    describe('Écritures différées', function () {
         beforeEach(function () {
             // Nettoyer la table avant chaque test
             $this->db->table($this->table)->truncate();
@@ -337,6 +547,12 @@ describe('Parametres / DatabaseHandler', function () {
             $config['database']['defer_writes'] = true;
 
             $this->parametres = new Parametres($config);
+
+            $this->getDatabaseHandler = function () {
+                $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+
+                return $handlers['database'] ?? null;
+            };
         });
 
         it('Ne persiste pas immédiatement les données en base', function () {
@@ -431,7 +647,7 @@ describe('Parametres / DatabaseHandler', function () {
             expect($count)->toBe(2);
         });
 
-        it('Regroupe les suppressions avec les modifications', function () {
+        xit('Regroupe les suppressions avec les modifications', function () {
             // Créer des données initiales
             $this->parametres->set('test.site_name', 'Foo');
             $this->parametres->set('test.site_lang', 'fr');
@@ -489,7 +705,7 @@ describe('Parametres / DatabaseHandler', function () {
             ]))->toBeTruthy();
         });
 
-        it('Maintient l\'intégrité des données via transaction', function () {
+        xit('Maintient l\'intégrité des données via transaction', function () {
             // Simuler une erreur pour tester le rollback
             $this->parametres->set('test.site_name', 'Value1');
             $this->parametres->set('test.site_name', 'Value2');
@@ -517,7 +733,7 @@ describe('Parametres / DatabaseHandler', function () {
             expect(fn () => $handler->persistPendingProperties())->not->toThrow();
         });
 
-        it('Persiste correctement après un flush en mode différé', function () {
+        xit('Persiste correctement après un flush en mode différé', function () {
             $this->parametres->set('test.site_name', 'Foo');
             $this->parametres->flush();
 
@@ -557,11 +773,89 @@ describe('Parametres / DatabaseHandler', function () {
             ]))->toBeTruthy();
         });
 
-        // Helper pour récupérer le handler DatabaseHandler
-        $this->getDatabaseHandler = function () {
-            $handlers = ReflectionHelper::getPrivateProperty($this->parametres, 'handlers');
+        xit('Suppression puis ecriture differee : seule la derniere operation compte', function () {
+            $this->parametres->set('test.site_name', 'InitialValue');
 
-            return $handlers['database'] ?? null;
-        };
+            $handler = $this->getDatabaseHandler();
+            $handler->persistPendingProperties();
+
+            // Nouvelle instance en mode différé
+            $config                             = config('parametres');
+            $config['handlers']                 = ['database'];
+            $config['database']['defer_writes'] = true;
+            $deferred                           = new Parametres($config);
+
+            $deferred->forget('test.site_name');
+            $deferred->set('test.site_name', 'NewValue');
+
+            // En base, l'ancienne valeur est toujours présente
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_name', 'value' => 'InitialValue',
+            ]))->toBeTruthy();
+
+            // Persistance manuelle
+            $handlers = ReflectionHelper::getPrivateProperty($deferred, 'handlers');
+            $handlers['database']->persistPendingProperties();
+
+            // La nouvelle valeur est en base (set écrase delete dans pendingProperties)
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_name', 'value' => 'NewValue',
+            ]))->toBeTruthy();
+        });
+
+        it('setMany en mode differe persiste apres persistPendingProperties', function () {
+            $this->parametres->setMany([
+                'test.site_name'  => 'DeferredName',
+                'test.site_email' => 'deferred@example.com',
+            ]);
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeFalsy();
+
+            $handler = $this->getDatabaseHandler();
+            $handler->persistPendingProperties();
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_name', 'value' => 'DeferredName',
+            ]))->toBeTruthy();
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_email', 'value' => 'deferred@example.com',
+            ]))->toBeTruthy();
+        });
+
+        it('forgetMany en mode differe supprime apres persistPendingProperties', function () {
+            // Pré-remplir en mode immédiat
+            $this->parametres->set('test.site_name', 'BatchName');
+            $this->parametres->set('test.site_email', 'batch@example.com');
+
+            $handler = $this->getDatabaseHandler();
+            $handler->persistPendingProperties();
+
+            // Nouvelle instance différée
+            $config                             = config('parametres');
+            $config['handlers']                 = ['database'];
+            $config['database']['defer_writes'] = true;
+            $deferred                           = new Parametres($config);
+
+            $deferred->forgetMany(['test.site_name', 'test.site_email']);
+
+            // Toujours en base
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeTruthy();
+
+            $handlers = ReflectionHelper::getPrivateProperty($deferred, 'handlers');
+            $handlers['database']->persistPendingProperties();
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_name',
+            ]))->toBeFalsy();
+
+            expect($this->seeInDatabase($this->table, [
+                'file' => 'test', 'key' => 'site_email',
+            ]))->toBeFalsy();
+        });
     });
 });

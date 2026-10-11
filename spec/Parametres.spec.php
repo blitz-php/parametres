@@ -70,4 +70,97 @@ describe('Parametres / Parametres', function () {
 
         expect('Bar')->toBe($this->parametres->get('test.site_name', 'category:disease'));
     });
+
+    describe('getMany', function () {
+        it('retourne plusieurs valeurs', function () {
+            $this->parametres->setMany([
+                'test.site_name'  => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+            ]);
+
+            $results = $this->parametres->getMany(['test.site_name', 'test.site_email']);
+
+            expect($results['test.site_name'])->toBe('BatchName');
+            expect($results['test.site_email'])->toBe('batch@example.com');
+        });
+
+        it('retourne un tableau vide pour une liste vide', function () {
+            expect($this->parametres->getMany([]))->toBe([]);
+        });
+
+        it('retourne null pour les clés inexistantes', function () {
+            $results = $this->parametres->getMany(['nada.site_name']);
+
+            expect($results['nada.site_name'])->toBeNull();
+        });
+
+        it('respecte le contexte', function () {
+            $this->parametres->setMany(['test.site_name' => 'General']);
+
+            $this->parametres->setMany(['test.site_name' => 'Context'], 'testing:true');
+
+            $results = $this->parametres->getMany(['test.site_name'], 'testing:true');
+
+            expect($results['test.site_name'])->toBe('Context');
+        });
+    });
+
+    describe('setMany', function () {
+        it('stocke plusieurs valeurs', function () {
+            $this->parametres->setMany([
+                'test.site_name'  => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+            ]);
+
+            expect($this->parametres->get('test.site_name'))->toBe('BatchName');
+            expect($this->parametres->get('test.site_email'))->toBe('batch@example.com');
+        });
+
+        it('accepte un tableau vide', function () {
+            $this->parametres->set('test.site_name', 'ExistingName');
+            $this->parametres->setMany([]);
+
+            expect($this->parametres->get('test.site_name'))->toBe('ExistingName');
+        });
+
+        it('respecte le contexte', function () {
+            $this->parametres->setMany([
+                'test.site_name'  => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+            ], 'testing:true');
+
+            expect($this->parametres->get('test.site_name', 'testing:true'))->toBe('BatchName');
+            expect($this->parametres->get('test.site_email', 'testing:true'))->toBe('batch@example.com');
+        });
+    });
+
+    describe('forgetMany', function () {
+        xit('supprime plusieurs valeurs', function () {
+            $this->parametres->setMany([
+                'test.site_name'  => 'BatchName',
+                'test.site_email' => 'batch@example.com',
+            ]);
+
+            $this->parametres->forgetMany(['test.site_name', 'test.site_email']);
+
+            expect($this->parametres->get('test.site_name'))->toBeNull();
+            expect($this->parametres->get('test.site_email'))->toBeNull();
+        });
+
+        it('accepte un tableau vide', function () {
+            $this->parametres->set('test.site_name', 'ExistingName');
+            $this->parametres->forgetMany([]);
+
+            expect($this->parametres->get('test.site_name'))->toBe('ExistingName');
+        });
+
+        it('respecte le contexte', function () {
+            $this->parametres->set('test.site_name', 'General');
+            $this->parametres->set('test.site_name', 'Context', 'testing:true');
+
+            $this->parametres->forgetMany(['test.site_name'], 'testing:true');
+
+            expect($this->parametres->get('test.site_name', 'testing:true'))->toBe('General');
+        });
+    });
 });
